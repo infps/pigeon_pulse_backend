@@ -1,0 +1,176 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  LOFT_OWNER
+}
+
+enum RaceStatus {
+  UPCOMING
+  LIVE
+  COMPLETED
+}
+
+enum EntryStatus {
+  PENDING
+  ARRIVED
+  DISQUALIFIED
+}
+
+enum PaymentStatus {
+  SUCCESS
+  FAILED
+  PENDING
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean
+  image         String?
+  createdAt     DateTime
+  updatedAt     DateTime
+  sessions      Session[]
+  accounts      Account[]
+
+  role         Role      @default(LOFT_OWNER)
+  lofts        Loft[]
+  payments     Payment[]
+  createdRaces Race[]    @relation("CreatedRaces")
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Loft {
+  id       String @id @default(uuid())
+  name     String
+  location String
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  birds    Bird[]
+}
+
+model Bird {
+  id                String      @id @default(uuid())
+  name              String
+  bandNumber        String      @unique
+  breed             String
+  color             String
+  gender            String
+  age               Int
+  wingspan          Float
+  vaccinationStatus Boolean
+  penNumber         String
+  raceExperience    Int
+  photo             String?
+  rfidTagId         String?     @unique
+  loftId            String
+  loft              Loft        @relation(fields: [loftId], references: [id], onDelete: Cascade)
+  raceEntries       RaceEntry[]
+}
+
+model Race {
+  id              String      @id @default(uuid())
+  name            String
+  date            DateTime
+  startTime       DateTime
+  distanceKm      Float
+  startLocation   String
+  endLocation     String
+  entryFee        Float
+  maxParticipants Int
+  status          RaceStatus  @default(UPCOMING)
+  rules           String
+  description     String
+  photo           String?
+  createdById     String
+  createdBy       User        @relation("CreatedRaces", fields: [createdById], references: [id], onDelete: Cascade)
+  entries         RaceEntry[]
+  payments        Payment[]
+}
+
+model RaceEntry {
+  id          String      @id @default(uuid())
+  raceId      String
+  birdId      String
+  arrivalTime DateTime?
+  speed       Float?
+  rank        Int?
+  status      EntryStatus @default(PENDING)
+  race        Race        @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  bird        Bird        @relation(fields: [birdId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  userId        String
+  raceId        String
+  transactionId String        @unique
+  entryFee      Float
+  status        PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  race Race @relation(fields: [raceId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+}
