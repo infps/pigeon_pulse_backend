@@ -4,6 +4,7 @@ import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth";
 import type { Session, User } from "better-auth";
 import raceRouter from "./routes/race.router";
+import { dashboardRouter } from "./routes/dashboard.router";
 const app = express();
 
 app.use(
@@ -16,6 +17,7 @@ app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use(express.json());
 app.use("/api/races", raceRouter);
+app.use("/api/dashboard", dashboardRouter);
 
 app.listen(4000, () => {
   console.log("Server is running on http://localhost:4000");
