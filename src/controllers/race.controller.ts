@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import {
   createRaceBody,
-  getUserByIdParams,
+  getIdParams,
   updateRaceBody,
   updateRaceParams,
 } from "../schema/zodSchema";
@@ -167,7 +167,7 @@ const updateRace = async (req: Request, res: Response) => {
   }
 };
 
-const getRacesJoined = async (req: Request, res: Response) => {
+const getRaceStats = async (req: Request, res: Response) => {
   if (!req.user || !req.session) {
     res.status(401).json({
       error: "Unauthorized",
@@ -175,22 +175,18 @@ const getRacesJoined = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const validatedParams = getUserByIdParams.safeParse(req.params);
+    const validatedParams = getIdParams.safeParse(req.params);
     if (!validatedParams.success) {
       res.status(400).json({
-        error: "Invalid user ID",
-        details: validatedParams.error.errors,
+        error: "Invalid request parameters",
+        issues: validatedParams.error.issues,
       });
       return;
     }
     const { id } = validatedParams.data;
-    const racesJoined = await prisma.raceEntry.findMany({
+    const stats = await prisma.raceEntry.findMany({
       where: {
-        bird: {
-          loft: {
-            userId: id,
-          },
-        },
+        raceId: id,
       },
       include: {
         bird: {
@@ -204,63 +200,21 @@ const getRacesJoined = async (req: Request, res: Response) => {
         race: {
           select: {
             name: true,
-          },
-        },
-      },
-    });
-  } catch (error) {}
-};
-const getWinsByUser = async (req: Request, res: Response) => {
-  if (!req.user || !req.session) {
-    res.status(401).json({
-      error: "Unauthorized",
-    });
-    return;
-  }
-  try {
-    const validatedParams = getUserByIdParams.safeParse(req.params);
-    if (!validatedParams.success) {
-      res.status(400).json({
-        error: "Invalid user ID",
-        details: validatedParams.error.errors,
-      });
-      return;
-    }
-    const { id } = validatedParams.data;
-    const wins = await prisma.raceEntry.findMany({
-      where: {
-        bird: {
-          loft: {
-            userId: id,
-          },
-        },
-      },
-      include: {
-        bird: {
-          select: {
-            name: true,
-            color: true,
-            bandNumber: true,
-            breed: true,
-          },
-        },
-        race: {
-          select: {
-            name: true,
+            status: true,
           },
         },
       },
     });
     res.status(200).json({
-      message: "Wins fetched successfully",
-      data: wins,
+      message: "Stats fetched successfully",
+      data: stats,
     });
   } catch (error) {
-    console.error("Error fetching wins:", error);
+    console.error("Error fetching stats:", error);
     res.status(500).json({
       error: "Internal server error",
     });
   }
 };
 
-export { createRace, getRaces, updateRace };
+export { createRace, getRaces, updateRace, getRaceStats };

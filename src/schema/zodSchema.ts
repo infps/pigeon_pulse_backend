@@ -102,6 +102,6 @@ export const updateRaceBody = z.object({
   description: z.string().optional(),
 });
 
-export const getUserByIdParams = z.object({
+export const getIdParams = z.object({
   id: z.string().uuid(),
 });

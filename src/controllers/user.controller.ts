@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
 import { prisma } from "../lib/prisma";
-import { getUserByIdParams } from "../schema/zodSchema";
+import { getIdParams } from "../schema/zodSchema";
 
-export const getUsers = async (req: Request, res: Response) => {
+const getUsers = async (req: Request, res: Response) => {
   if (!req.user || !req.session) {
     res.status(401).json({
       error: "Unauthorized",
@@ -31,14 +31,14 @@ export const getUsers = async (req: Request, res: Response) => {
   }
 };
 
-export const getUserById = async (req: Request, res: Response) => {
+const getUserById = async (req: Request, res: Response) => {
   if (!req.user || !req.session) {
     res.status(401).json({
       error: "Unauthorized",
     });
     return;
   }
-  const validatedParams = getUserByIdParams.safeParse(req.params);
+  const validatedParams = getIdParams.safeParse(req.params);
   if (!validatedParams.success) {
     res.status(400).json({
       error: "Invalid user ID",
@@ -116,4 +116,198 @@ export const getUserById = async (req: Request, res: Response) => {
       error: "Internal server error",
     });
   }
+};
+
+const getWinsByUser = async (req: Request, res: Response) => {
+  if (!req.user || !req.session) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  }
+  try {
+    const validatedParams = getIdParams.safeParse(req.params);
+    if (!validatedParams.success) {
+      res.status(400).json({
+        error: "Invalid user ID",
+        details: validatedParams.error.errors,
+      });
+      return;
+    }
+    const { id } = validatedParams.data;
+    const wins = await prisma.raceEntry.findMany({
+      where: {
+        bird: {
+          loft: {
+            userId: id,
+          },
+        },
+      },
+      include: {
+        bird: {
+          select: {
+            name: true,
+            color: true,
+            bandNumber: true,
+            breed: true,
+          },
+        },
+        race: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+    res.status(200).json({
+      message: "Wins fetched successfully",
+      data: wins,
+    });
+  } catch (error) {
+    console.error("Error fetching wins:", error);
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+
+const getTotalAmountPaid = async (req: Request, res: Response) => {
+  if (!req.user || !req.session) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  }
+  try {
+    const validatedParams = getIdParams.safeParse(req.params);
+    if (!validatedParams.success) {
+      res.status(400).json({
+        error: "Invalid user ID",
+        details: validatedParams.error.errors,
+      });
+      return;
+    }
+    const { id } = validatedParams.data;
+    const paidAmount = await prisma.payment.aggregate({
+      _sum: {
+        entryFee: true,
+      },
+      where: {
+        userId: id,
+      },
+    });
+    res.status(200).json({
+      message: "Total paid amount fetched successfully",
+      data: {
+        totalPaidAmount: paidAmount._sum.entryFee || 0,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching total paid amount:", error);
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+const getRacesJoined = async (req: Request, res: Response) => {
+  if (!req.user || !req.session) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  }
+  try {
+    const validatedParams = getIdParams.safeParse(req.params);
+    if (!validatedParams.success) {
+      res.status(400).json({
+        error: "Invalid user ID",
+        details: validatedParams.error.errors,
+      });
+      return;
+    }
+    const { id } = validatedParams.data;
+    const racesJoined = await prisma.raceEntry.findMany({
+      where: {
+        bird: {
+          loft: {
+            userId: id,
+          },
+        },
+      },
+      include: {
+        bird: {
+          select: {
+            name: true,
+            color: true,
+            bandNumber: true,
+            breed: true,
+          },
+        },
+        race: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+    res.status(200).json({
+      message: "Fetched races joined successfully",
+      data: racesJoined,
+    });
+  } catch (error) {
+    console.error("Error fetching data", error);
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+const getBirdByUserId = async (req: Request, res: Response) => {
+  if (!req.user || !req.session) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  }
+  try {
+    const validatedParams = getIdParams.safeParse(req.params);
+    if (!validatedParams.success) {
+      res.status(400).json({
+        error: "Invalid user ID",
+        details: validatedParams.error.errors,
+      });
+      return;
+    }
+    const { id } = validatedParams.data;
+    const birds = await prisma.bird.findMany({
+      where: {
+        loft: {
+          userId: id,
+        },
+      },
+      include: {
+        loft: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+    res.status(200).json({
+      message: "Birds fetched successfully",
+      data: birds,
+    });
+  } catch (error) {
+    console.error("Error fetching birds:", error);
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+export {
+  getUsers,
+  getUserById,
+  getWinsByUser,
+  getTotalAmountPaid,
+  getRacesJoined,
+  getBirdByUserId,
 };
