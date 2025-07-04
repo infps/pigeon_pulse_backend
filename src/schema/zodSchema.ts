@@ -112,3 +112,8 @@ export const updateUserBody = z.object({
   banned: z.boolean(),
   banReason: z.string().nullable(),
 });
+
+export const getQueryParams = z.object({
+  page: z.coerce.number().int().min(1).default(1).optional(),
+  search: z.string().optional(),
+});

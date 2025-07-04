@@ -5,6 +5,7 @@ import {
   getIdParams,
   updateRaceBody,
   updateUserBody,
+  getQueryParams,
 } from "../schema/zodSchema";
 import s3Client from "../lib/s3client";
 
@@ -76,20 +77,62 @@ const getUsers = async (req: Request, res: Response) => {
     });
     return;
   }
-  try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
-        banned: true,
-      },
-      take: 10,
+  
+  const validatedQuery = getQueryParams.safeParse(req.query);
+  if (!validatedQuery.success) {
+    res.status(400).json({
+      error: "Invalid query parameters",
+      details: validatedQuery.error.errors,
     });
+    return;
+  }
+  
+  const { page = 1, search } = validatedQuery.data;
+  const limit = 10;
+  const offset = (page - 1) * limit;
+  
+  try {
+    const whereClause = search ? {
+      OR: [
+        { name: { contains: search, mode: "insensitive" as const } },
+        { email: { contains: search, mode: "insensitive" as const } },
+      ],
+    } : {};
+    
+    const [users, totalUsers] = await prisma.$transaction([
+      prisma.user.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true,
+          banned: true,
+        },
+        skip: offset,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      prisma.user.count({
+        where: whereClause,
+      }),
+    ]);
+    
+    const totalPages = Math.ceil(totalUsers / limit);
+    
     res.status(200).json({
       message: "Users fetched successfully",
       data: users,
+      pagination: {
+        page,
+        limit,
+        total: totalUsers,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -277,40 +320,86 @@ const getBirdByUserId = async (req: Request, res: Response) => {
     });
     return;
   }
-  try {
-    const validatedParams = getIdParams.safeParse(req.params);
-    if (!validatedParams.success) {
-      res.status(400).json({
-        error: "Invalid user ID",
-        details: validatedParams.error.errors,
-      });
-      return;
-    }
-    const { id } = validatedParams.data;
-    const birds = await prisma.bird.findMany({
-      where: {
-        loft: {
-          userId: id,
-        },
-      },
-      select: {
-        loft: {
-          select: {
-            name: true,
-            loftId: true,
-          },
-        },
-        id: true,
-        name: true,
-        bandNumber: true,
-        color: true,
-        breed: true,
-        gender: true,
-      },
+  
+  const validatedParams = getIdParams.safeParse(req.params);
+  if (!validatedParams.success) {
+    res.status(400).json({
+      error: "Invalid user ID",
+      details: validatedParams.error.errors,
     });
+    return;
+  }
+  
+  const validatedQuery = getQueryParams.safeParse(req.query);
+  if (!validatedQuery.success) {
+    res.status(400).json({
+      error: "Invalid query parameters",
+      details: validatedQuery.error.errors,
+    });
+    return;
+  }
+  
+  const { id } = validatedParams.data;
+  const { page = 1, search } = validatedQuery.data;
+  const limit = 10;
+  const offset = (page - 1) * limit;
+  
+  try {
+    const whereClause = {
+      loft: {
+        userId: id,
+      },
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: "insensitive" as const } },
+          { bandNumber: { contains: search, mode: "insensitive" as const } },
+          { color: { contains: search, mode: "insensitive" as const } },
+          { breed: { contains: search, mode: "insensitive" as const } },
+        ],
+      }),
+    };
+    
+    const [birds, totalBirds] = await prisma.$transaction([
+      prisma.bird.findMany({
+        where: whereClause,
+        select: {
+          loft: {
+            select: {
+              name: true,
+              loftId: true,
+            },
+          },
+          id: true,
+          name: true,
+          bandNumber: true,
+          color: true,
+          breed: true,
+          gender: true,
+        },
+        skip: offset,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      prisma.bird.count({
+        where: whereClause,
+      }),
+    ]);
+    
+    const totalPages = Math.ceil(totalBirds / limit);
+    
     res.status(200).json({
       message: "Birds fetched successfully",
       data: birds,
+      pagination: {
+        page,
+        limit,
+        total: totalBirds,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching birds:", error);
@@ -327,44 +416,89 @@ const getRacesJoined = async (req: Request, res: Response) => {
     });
     return;
   }
-  try {
-    const validatedParams = getIdParams.safeParse(req.params);
-    if (!validatedParams.success) {
-      res.status(400).json({
-        error: "Invalid user ID",
-        details: validatedParams.error.errors,
-      });
-      return;
-    }
-    const { id } = validatedParams.data;
-    const racesJoined = await prisma.raceEntry.findMany({
-      where: {
-        bird: {
-          loft: {
-            userId: id,
-          },
-        },
-      },
-      include: {
-        bird: {
-          select: {
-            name: true,
-            color: true,
-            bandNumber: true,
-            breed: true,
-          },
-        },
-        race: {
-          select: {
-            name: true,
-            status: true,
-          },
-        },
-      },
+  
+  const validatedParams = getIdParams.safeParse(req.params);
+  if (!validatedParams.success) {
+    res.status(400).json({
+      error: "Invalid user ID",
+      details: validatedParams.error.errors,
     });
+    return;
+  }
+  
+  const validatedQuery = getQueryParams.safeParse(req.query);
+  if (!validatedQuery.success) {
+    res.status(400).json({
+      error: "Invalid query parameters",
+      details: validatedQuery.error.errors,
+    });
+    return;
+  }
+  
+  const { id } = validatedParams.data;
+  const { page = 1, search } = validatedQuery.data;
+  const limit = 10;
+  const offset = (page - 1) * limit;
+  
+  try {
+    const whereClause = {
+      bird: {
+        loft: {
+          userId: id,
+        },
+      },
+      ...(search && {
+        OR: [
+          { bird: { name: { contains: search, mode: "insensitive" as const } } },
+          { bird: { bandNumber: { contains: search, mode: "insensitive" as const } } },
+          { race: { name: { contains: search, mode: "insensitive" as const } } },
+        ],
+      }),
+    };
+    
+    const [racesJoined, totalRaces] = await prisma.$transaction([
+      prisma.raceEntry.findMany({
+        where: whereClause,
+        include: {
+          bird: {
+            select: {
+              name: true,
+              color: true,
+              bandNumber: true,
+              breed: true,
+            },
+          },
+          race: {
+            select: {
+              name: true,
+              status: true,
+            },
+          },
+        },
+        skip: offset,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      prisma.raceEntry.count({
+        where: whereClause,
+      }),
+    ]);
+    
+    const totalPages = Math.ceil(totalRaces / limit);
+    
     res.status(200).json({
       message: "Fetched races joined successfully",
       data: racesJoined,
+      pagination: {
+        page,
+        limit,
+        total: totalRaces,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching data", error);
@@ -380,46 +514,111 @@ const getWinsByUser = async (req: Request, res: Response) => {
     });
     return;
   }
-  try {
-    const validatedParams = getIdParams.safeParse(req.params);
-    if (!validatedParams.success) {
-      res.status(400).json({
-        error: "Invalid user ID",
-        details: validatedParams.error.errors,
-      });
-      return;
-    }
-    const { id } = validatedParams.data;
-    const wins = await prisma.raceEntry.findMany({
-      where: {
-        bird: {
-          loft: {
-            userId: id,
-          },
-        },
-        race: {
-          status: "COMPLETED",
-        },
-      },
-      include: {
-        bird: {
-          select: {
-            name: true,
-            color: true,
-            bandNumber: true,
-            breed: true,
-          },
-        },
-        race: {
-          select: {
-            name: true,
-          },
-        },
-      },
+  
+  const validatedParams = getIdParams.safeParse(req.params);
+  if (!validatedParams.success) {
+    res.status(400).json({
+      error: "Invalid user ID",
+      details: validatedParams.error.errors,
     });
+    return;
+  }
+  
+  const validatedQuery = getQueryParams.safeParse(req.query);
+  if (!validatedQuery.success) {
+    res.status(400).json({
+      error: "Invalid query parameters",
+      details: validatedQuery.error.errors,
+    });
+    return;
+  }
+  
+  const { id } = validatedParams.data;
+  const { page = 1, search } = validatedQuery.data;
+  const limit = 10;
+  const offset = (page - 1) * limit;
+  
+  try {
+    const baseWhereClause = {
+      bird: {
+        loft: {
+          userId: id,
+        },
+      },
+      race: {
+        status: "COMPLETED" as const,
+      },
+    };
+    
+    const whereClause = search ? {
+      ...baseWhereClause,
+      OR: [
+        { 
+          bird: { 
+            name: { contains: search, mode: "insensitive" as const },
+            loft: { userId: id }
+          },
+          race: { status: "COMPLETED" as const }
+        },
+        { 
+          bird: { 
+            bandNumber: { contains: search, mode: "insensitive" as const },
+            loft: { userId: id }
+          },
+          race: { status: "COMPLETED" as const }
+        },
+        { 
+          race: { 
+            name: { contains: search, mode: "insensitive" as const },
+            status: "COMPLETED" as const
+          },
+          bird: { loft: { userId: id } }
+        },
+      ],
+    } : baseWhereClause;
+    
+    const [wins, totalWins] = await prisma.$transaction([
+      prisma.raceEntry.findMany({
+        where: whereClause,
+        include: {
+          bird: {
+            select: {
+              name: true,
+              color: true,
+              bandNumber: true,
+              breed: true,
+            },
+          },
+          race: {
+            select: {
+              name: true,
+            },
+          },
+        },
+        skip: offset,
+        take: limit,
+        orderBy: {
+          position: "asc",
+        },
+      }),
+      prisma.raceEntry.count({
+        where: whereClause,
+      }),
+    ]);
+    
+    const totalPages = Math.ceil(totalWins / limit);
+    
     res.status(200).json({
       message: "Wins fetched successfully",
       data: wins,
+      pagination: {
+        page,
+        limit,
+        total: totalWins,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching wins:", error);
@@ -442,46 +641,89 @@ const getPaymentsByUser = async (req: Request, res: Response) => {
     return;
   }
 
+  const validatedParams = getIdParams.safeParse(req.params);
+  if (!validatedParams.success) {
+    res.status(400).json({
+      error: "Invalid user ID",
+      details: validatedParams.error.errors,
+    });
+    return;
+  }
+  
+  const validatedQuery = getQueryParams.safeParse(req.query);
+  if (!validatedQuery.success) {
+    res.status(400).json({
+      error: "Invalid query parameters",
+      details: validatedQuery.error.errors,
+    });
+    return;
+  }
+  
+  const { id } = validatedParams.data;
+  const { page = 1, search } = validatedQuery.data;
+  const limit = 10;
+  const offset = (page - 1) * limit;
+
   try {
-    const validatedParams = getIdParams.safeParse(req.params);
-    if (!validatedParams.success) {
-      res.status(400).json({
-        error: "Invalid user ID",
-        details: validatedParams.error.errors,
-      });
-      return;
-    }
-    const { id } = validatedParams.data;
-    const payments = await prisma.payment.findMany({
-      where: {
-        userId: id,
-      },
-      include: {
-        raceEntries: {
-          include: {
-            bird: {
-              select: {
-                name: true,
-                loft: {
-                  select: {
-                    name: true,
-                    loftId: true,
+    const whereClause = {
+      userId: id,
+      ...(search && {
+        OR: [
+          { raceEntries: { some: { bird: { name: { contains: search, mode: "insensitive" as const } } } } },
+          { raceEntries: { some: { race: { name: { contains: search, mode: "insensitive" as const } } } } },
+        ],
+      }),
+    };
+    
+    const [payments, totalPayments] = await prisma.$transaction([
+      prisma.payment.findMany({
+        where: whereClause,
+        include: {
+          raceEntries: {
+            include: {
+              bird: {
+                select: {
+                  name: true,
+                  loft: {
+                    select: {
+                      name: true,
+                      loftId: true,
+                    },
                   },
                 },
               },
-            },
-            race: {
-              select: {
-                name: true,
+              race: {
+                select: {
+                  name: true,
+                },
               },
             },
           },
         },
-      },
-    });
+        skip: offset,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      prisma.payment.count({
+        where: whereClause,
+      }),
+    ]);
+    
+    const totalPages = Math.ceil(totalPayments / limit);
+    
     res.status(200).json({
       message: "Payments fetched successfully",
       data: payments,
+      pagination: {
+        page,
+        limit,
+        total: totalPayments,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching payments:", error);
@@ -504,23 +746,62 @@ const getRaces = async (req: Request, res: Response) => {
     return;
   }
 
+  const validatedQuery = getQueryParams.safeParse(req.query);
+  if (!validatedQuery.success) {
+    res.status(400).json({
+      error: "Invalid query parameters",
+      details: validatedQuery.error.errors,
+    });
+    return;
+  }
+  
+  const { page = 1, search } = validatedQuery.data;
+  const limit = 10;
+  const offset = (page - 1) * limit;
+
   try {
-    const races = await prisma.race.findMany({
-      take: 10,
-      orderBy: {
-        createdAt: "desc",
-      },
-      include: {
-        _count: {
-          select: {
-            entries: true,
+    const whereClause = search ? {
+      OR: [
+        { name: { contains: search, mode: "insensitive" as const } },
+        { startLocation: { contains: search, mode: "insensitive" as const } },
+        { endLocation: { contains: search, mode: "insensitive" as const } },
+      ],
+    } : {};
+    
+    const [races, totalRaces] = await prisma.$transaction([
+      prisma.race.findMany({
+        where: whereClause,
+        skip: offset,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+        include: {
+          _count: {
+            select: {
+              entries: true,
+            },
           },
         },
-      },
-    });
+      }),
+      prisma.race.count({
+        where: whereClause,
+      }),
+    ]);
+    
+    const totalPages = Math.ceil(totalRaces / limit);
+    
     res.status(200).json({
       message: "Races fetched successfully",
       data: races,
+      pagination: {
+        page,
+        limit,
+        total: totalRaces,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching races:", error);
@@ -713,42 +994,254 @@ const getAllPayments = async (req: Request, res: Response) => {
     });
     return;
   }
+  
+  const validatedQuery = getQueryParams.safeParse(req.query);
+  if (!validatedQuery.success) {
+    res.status(400).json({
+      error: "Invalid query parameters",
+      details: validatedQuery.error.errors,
+    });
+    return;
+  }
+  
+  const { page = 1, search } = validatedQuery.data;
+  const limit = 10;
+  const offset = (page - 1) * limit;
+  
   try {
-    const payments = await prisma.payment.findMany({
-      include: {
-        raceEntries: {
-          include: {
-            race: {
-              select: {
-                name: true,
+    const whereClause = search ? {
+      OR: [
+        { user: { name: { contains: search, mode: "insensitive" as const } } },
+        { user: { email: { contains: search, mode: "insensitive" as const } } },
+        { raceEntries: { some: { race: { name: { contains: search, mode: "insensitive" as const } } } } },
+        { raceEntries: { some: { bird: { name: { contains: search, mode: "insensitive" as const } } } } },
+      ],
+    } : {};
+    
+    const [payments, totalPayments] = await prisma.$transaction([
+      prisma.payment.findMany({
+        where: whereClause,
+        include: {
+          raceEntries: {
+            include: {
+              race: {
+                select: {
+                  name: true,
+                },
               },
-            },
-            bird: {
-              select: {
-                loft: {
-                  select: {
-                    loftId: true,
+              bird: {
+                select: {
+                  loft: {
+                    select: {
+                      loftId: true,
+                    },
                   },
                 },
               },
             },
           },
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-      },
-      take: 10,
-    });
+        skip: offset,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      prisma.payment.count({
+        where: whereClause,
+      }),
+    ]);
+    
+    const totalPages = Math.ceil(totalPayments / limit);
+    
     res.status(200).json({
       message: "Payments fetched successfully",
       data: payments,
+      pagination: {
+        page,
+        limit,
+        total: totalPayments,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching payments:", error);
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+
+const getRaceStatistics = async (req: Request, res: Response) => {
+  if (
+    !req.user ||
+    !req.session ||
+    !req.user?.role ||
+    req.user.role !== "admin"
+  ) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  }
+  
+  const validatedQuery = getQueryParams.safeParse(req.query);
+  if (!validatedQuery.success) {
+    res.status(400).json({
+      error: "Invalid query parameters",
+      details: validatedQuery.error.errors,
+    });
+    return;
+  }
+  
+  const { page = 1, search } = validatedQuery.data;
+  const limit = 10;
+  const offset = (page - 1) * limit;
+  
+  try {
+    const whereClause = {
+      status: "COMPLETED" as const,
+      ...(search && {
+        name: { contains: search, mode: "insensitive" as const },
+      }),
+    };
+    
+    const [raceStats, totalRaces] = await prisma.$transaction([
+      prisma.race.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          name: true,
+          entries: {
+            select: {
+              position: true,
+              bird: {
+                select: {
+                  name: true,
+                  bandNumber: true,
+                  loft: {
+                    select: {
+                      name: true,
+                      loftId: true,
+                    },
+                  },
+                },
+              },
+              arrivalTime: true,
+            },
+            take: 4,
+            orderBy: {
+              position: "asc",
+            },
+          },
+        },
+        skip: offset,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      prisma.race.count({
+        where: whereClause,
+      }),
+    ]);
+    
+    const totalPages = Math.ceil(totalRaces / limit);
+    
+    res.status(200).json({
+      message: "Race stats fetched successfully",
+      data: raceStats,
+      pagination: {
+        page,
+        limit,
+        total: totalRaces,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching race statistics:", error);
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+
+const getRaceStatisticsById = async (req: Request, res: Response) => {
+  if (
+    !req.user ||
+    !req.session ||
+    !req.user?.role ||
+    req.user.role !== "admin"
+  ) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  }
+  const validatedParams = getIdParams.safeParse(req.params);
+  if (!validatedParams.success) {
+    res.status(400).json({
+      error: "Invalid RaceId",
+      details: validatedParams.error.errors,
+    });
+    return;
+  }
+  const { id } = validatedParams.data;
+  try {
+    const race = await prisma.race.findUnique({
+      where: { id },
+    });
+    if (!race) {
+      res.status(404).json({ error: "Race not found" });
+      return;
+    }
+    const raceStats = await prisma.race.findUnique({
+      where: {
+        id,
+        status: "COMPLETED",
+      },
+      select: {
+        id: true,
+        name: true,
+        entries: {
+          select: {
+            position: true,
+            bird: {
+              select: {
+                name: true,
+                bandNumber: true,
+                loft: {
+                  select: {
+                    name: true,
+                    loftId: true,
+                  },
+                },
+              },
+            },
+            arrivalTime: true,
+          },
+          orderBy: {
+            position: "asc",
+          },
+        },
+      },
+    });
+    res.status(200).json({
+      message: "Race statistics fetched successfully",
+      data: raceStats,
+    });
+  } catch (error) {
+    console.error("Error fetching race statistics by ID:", error);
     res.status(500).json({
       error: "Internal server error",
     });
@@ -770,4 +1263,6 @@ export {
   getRaceById,
   updateRace,
   getAllPayments,
+  getRaceStatistics,
+  getRaceStatisticsById,
 };

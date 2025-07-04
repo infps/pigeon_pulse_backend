@@ -9,6 +9,8 @@ import {
   getRaceById,
   getRaces,
   getRacesJoined,
+  getRaceStatistics,
+  getRaceStatisticsById,
   getUserById,
   getUsers,
   getUserSummary,
@@ -44,3 +46,5 @@ adminRouter.patch(
 );
 adminRouter.get("/dashboard", adminMiddleware, getDashboardData);
 adminRouter.get("/payments", adminMiddleware, getAllPayments);
+adminRouter.get("/race-stats", adminMiddleware, getRaceStatistics);
+adminRouter.get("/race-stats/:id", adminMiddleware, getRaceStatisticsById);
