@@ -68,26 +68,20 @@ const getUserById = async (req: Request, res: Response) => {
         }),
         prisma.bird.count({
           where: {
-            loft: {
-              userId: id,
+            ownerId: id,
+          },
+        }),
+        prisma.raceEntry.count({
+          where: {
+            bird: {
+              ownerId: id,
             },
           },
         }),
         prisma.raceEntry.count({
           where: {
             bird: {
-              loft: {
-                userId: id,
-              },
-            },
-          },
-        }),
-        prisma.raceEntry.count({
-          where: {
-            bird: {
-              loft: {
-                userId: id,
-              },
+              ownerId: id,
             },
             rank: {
               equals: 1,
@@ -138,9 +132,7 @@ const getWinsByUser = async (req: Request, res: Response) => {
     const wins = await prisma.raceEntry.findMany({
       where: {
         bird: {
-          loft: {
-            userId: id,
-          },
+          ownerId: id,
         },
       },
       include: {
@@ -229,9 +221,7 @@ const getRacesJoined = async (req: Request, res: Response) => {
     const racesJoined = await prisma.raceEntry.findMany({
       where: {
         bird: {
-          loft: {
-            userId: id,
-          },
+          ownerId: id,
         },
       },
       include: {
@@ -280,9 +270,7 @@ const getBirdByUserId = async (req: Request, res: Response) => {
     const { id } = validatedParams.data;
     const birds = await prisma.bird.findMany({
       where: {
-        loft: {
-          userId: id,
-        },
+        ownerId: id,
       },
       include: {
         loft: {
@@ -303,6 +291,113 @@ const getBirdByUserId = async (req: Request, res: Response) => {
     });
   }
 };
+
+const getLoftsbyUserId = async (req: Request, res: Response) => {
+  if (!req.user || !req.session) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  }
+  try {
+    const validatedParams = getIdParams.safeParse(req.params);
+    if (!validatedParams.success) {
+      res.status(400).json({
+        error: "Invalid user ID",
+        details: validatedParams.error.errors,
+      });
+      return;
+    }
+    const { id } = validatedParams.data;
+    const lofts = await prisma.loft.findMany({
+      where: {
+        users: {
+          some: {
+            userId: id,
+          },
+        },
+      },
+    });
+    res.status(200).json({
+      message: "Lofts fetched successfully",
+      data: lofts,
+    });
+  } catch (error) {
+    console.error("Error fetching lofts:", error);
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+
+const getBirdsByLoftId = async (req: Request, res: Response) => {
+  if (!req.user || !req.session) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  }
+  try {
+    const validatedParams = getIdParams.safeParse(req.params);
+    if (!validatedParams.success) {
+      res.status(400).json({
+        error: "Invalid loft ID",
+        details: validatedParams.error.errors,
+      });
+      return;
+    }
+    const { id } = validatedParams.data;
+    const birds = await prisma.bird.findMany({
+      where: {
+        loftId: id,
+      },
+    });
+    res.status(200).json({
+      message: "Birds fetched successfully",
+      data: birds,
+    });
+  } catch (error) {
+    console.error("Error fetching birds by loft ID:", error);
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+
+const getMyProfile = async (req: Request, res: Response) => {
+  if (!req.user || !req.session) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  }
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+      },
+    });
+    if (!user) {
+      res.status(404).json({
+        error: "User not found",
+      });
+      return;
+    }
+    res.status(200).json({
+      message: "Profile fetched successfully",
+      data: user,
+    });
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
 export {
   getUsers,
   getUserById,
@@ -310,4 +405,5 @@ export {
   getTotalAmountPaid,
   getRacesJoined,
   getBirdByUserId,
+  getLoftsbyUserId,
 };

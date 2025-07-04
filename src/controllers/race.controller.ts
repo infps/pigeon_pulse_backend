@@ -204,6 +204,9 @@ const getRaceStats = async (req: Request, res: Response) => {
           },
         },
       },
+      orderBy: {
+        arrivalTime: "asc",
+      },
     });
     res.status(200).json({
       message: "Stats fetched successfully",
@@ -217,4 +220,49 @@ const getRaceStats = async (req: Request, res: Response) => {
   }
 };
 
-export { createRace, getRaces, updateRace, getRaceStats };
+const getRaceById = async (req: Request, res: Response) => {
+  if (!req.user || !req.session) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  }
+  const validatedParams = getIdParams.safeParse(req.params);
+  if (!validatedParams.success) {
+    res.status(400).json({
+      error: "Invalid request parameters",
+      issues: validatedParams.error.issues,
+    });
+    return;
+  }
+  try {
+    const { id } = validatedParams.data;
+    const race = await prisma.race.findUnique({
+      where: {
+        id: id,
+      },
+      include: {
+        _count: {
+          select: {
+            entries: true,
+          },
+        },
+      },
+    });
+    if (!race) {
+      res.status(404).json({ message: "Race not found" });
+      return;
+    }
+    res.status(200).json({
+      message: "Race fetched successfully",
+      data: race,
+    });
+  } catch (error) {
+    console.error("Error fetching race by ID:", error);
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+
+export { createRace, getRaces, updateRace, getRaceStats, getRaceById };
