@@ -33,6 +33,9 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
+  invitationsSent LoftInvitation[] @relation("Inviter")
+  invitationsReceived LoftInvitation[] @relation("Invitee")
+
   @@map("user")
 }
 
@@ -44,7 +47,8 @@ model Loft {
   user       User         @relation("LoftOwner", fields: [userId], references: [id])
   userId     String
   birds      Bird[]
-  sharedWith SharedLoft[] // Users this loft is shared with
+  sharedWith SharedLoft[]
+  invitations LoftInvitation[]
   createdAt  DateTime     @default(now())
 }
 
@@ -59,18 +63,24 @@ model SharedLoft {
   @@unique([loftId, userId])
 }
 
+enum BirdGender {
+  MALE
+  FEMALE
+}
+
 model Bird {
   id                String      @id @default(uuid())
   name              String
   bandNumber        String      @unique
   breed             String?
   color             String?
-  gender            String?
+  gender            BirdGender
   age               Int?
+  photoUrl          String?
   wingspan          Float?
-  vaccinationStatus String?
+  vaccinationStatus Boolean     @default(false)
   penNumber         String?
-  raceExperience    Int? // number of races
+  raceExperience    Int?        @default(0)
   status            BirdStatus  @default(ACTIVE)
   rfIdTag           String?     @unique
   loft              Loft        @relation(fields: [loftId], references: [id])
@@ -78,6 +88,29 @@ model Bird {
   raceEntries       RaceEntry[]
   createdAt         DateTime    @default(now())
 }
+
+model LoftInvitation {
+  id         String      @id @default(uuid())
+  loft       Loft        @relation(fields: [loftId], references: [id])
+  loftId     String
+  invitedBy  User        @relation("Inviter", fields: [invitedById], references: [id])
+  invitedById String
+  invitedUser User?      @relation("Invitee", fields: [invitedUserId], references: [id])
+  invitedUserId String?  // Nullable if you're inviting by email only
+  status     InvitationStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@unique([loftId, invitedById, invitedUserId])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
 
 enum BirdStatus {
   ACTIVE

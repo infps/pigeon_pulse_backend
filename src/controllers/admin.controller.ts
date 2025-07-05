@@ -869,7 +869,7 @@ const createRace = async (req: Request, res: Response) => {
     });
     
     const fileExtension = req.file.mimetype.split("/")[1];
-    const key = `races/${race.id}-${Date.now()}.${fileExtension}`;
+    const key = `races/${race.id}.${fileExtension}`;
     
     await s3Client.write(key, req.file.buffer, {
       acl: "public-read",

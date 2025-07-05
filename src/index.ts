@@ -4,6 +4,7 @@ import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth";
 import type { Session, User } from "better-auth";
 import { adminRouter } from "./routes/adminRouter";
+import { userRouter } from "./routes/user.router";
 const app = express();
 
 app.use(
@@ -19,6 +20,7 @@ app.get("/", (req, res) => {
   res.send("Welcome to the API");
 });
 app.use("/api/admin", adminRouter);
+app.use("/api/user", userRouter);
 
 app.listen(4000, () => {
   console.log("Server is running on http://localhost:4000");
