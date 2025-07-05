@@ -821,7 +821,11 @@ const getRaces = async (req: Request, res: Response) => {
         include: {
           _count: {
             select: {
-              entries: true,
+              entries: {
+                where: {
+                  status: "PAID",
+                },
+              },
             },
           },
         },

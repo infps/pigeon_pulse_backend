@@ -188,3 +188,11 @@ export const inviteToLobyParams = z.object({
   loftid: z.string(),
   userId: z.string(),
 });
+
+export const createRaceOrderBody = z.object({
+  birdId: z
+    .array(z.string(), {
+      message: "Bird IDs must be an array of strings",
+    })
+    .min(1, "At least one bird ID is required"),
+});
