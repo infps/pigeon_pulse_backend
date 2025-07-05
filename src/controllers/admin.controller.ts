@@ -206,16 +206,18 @@ const getUserSummary = async (req: Request, res: Response) => {
     return;
   }
   const { id } = validatedParams.data;
-  const user = await prisma.user.findUnique({
-    where: { id },
-  });
-  if (!user) {
-    res.status(404).json({
-      error: "User not found",
-    });
-    return;
-  }
+  
   try {
+    const user = await prisma.user.findUnique({
+      where: { id },
+    });
+    if (!user) {
+      res.status(404).json({
+        error: "User not found",
+      });
+      return;
+    }
+    
     const [totalBirds, racesJoined, totalWins, paidAmount] =
       await prisma.$transaction([
         prisma.bird.count({
@@ -314,7 +316,12 @@ const updateUserStatus = async (req: Request, res: Response) => {
   }
 };
 const getBirdByUserId = async (req: Request, res: Response) => {
-  if (!req.user || !req.session) {
+  if (
+    !req.user ||
+    !req.session ||
+    !req.user?.role ||
+    req.user.role !== "admin"
+  ) {
     res.status(401).json({
       error: "Unauthorized",
     });
@@ -410,7 +417,12 @@ const getBirdByUserId = async (req: Request, res: Response) => {
 };
 
 const getRacesJoined = async (req: Request, res: Response) => {
-  if (!req.user || !req.session) {
+  if (
+    !req.user ||
+    !req.session ||
+    !req.user?.role ||
+    req.user.role !== "admin"
+  ) {
     res.status(401).json({
       error: "Unauthorized",
     });
@@ -508,7 +520,12 @@ const getRacesJoined = async (req: Request, res: Response) => {
   }
 };
 const getWinsByUser = async (req: Request, res: Response) => {
-  if (!req.user || !req.session) {
+  if (
+    !req.user ||
+    !req.session ||
+    !req.user?.role ||
+    req.user.role !== "admin"
+  ) {
     res.status(401).json({
       error: "Unauthorized",
     });
@@ -539,7 +556,7 @@ const getWinsByUser = async (req: Request, res: Response) => {
   const offset = (page - 1) * limit;
   
   try {
-    const baseWhereClause = {
+    const whereClause = {
       bird: {
         loft: {
           userId: id,
@@ -548,34 +565,29 @@ const getWinsByUser = async (req: Request, res: Response) => {
       race: {
         status: "COMPLETED" as const,
       },
+      ...(search && {
+        OR: [
+          { 
+            bird: { 
+              name: { contains: search, mode: "insensitive" as const },
+              loft: { userId: id }
+            }
+          },
+          { 
+            bird: { 
+              bandNumber: { contains: search, mode: "insensitive" as const },
+              loft: { userId: id }
+            }
+          },
+          { 
+            race: { 
+              name: { contains: search, mode: "insensitive" as const },
+              status: "COMPLETED" as const
+            }
+          },
+        ],
+      }),
     };
-    
-    const whereClause = search ? {
-      ...baseWhereClause,
-      OR: [
-        { 
-          bird: { 
-            name: { contains: search, mode: "insensitive" as const },
-            loft: { userId: id }
-          },
-          race: { status: "COMPLETED" as const }
-        },
-        { 
-          bird: { 
-            bandNumber: { contains: search, mode: "insensitive" as const },
-            loft: { userId: id }
-          },
-          race: { status: "COMPLETED" as const }
-        },
-        { 
-          race: { 
-            name: { contains: search, mode: "insensitive" as const },
-            status: "COMPLETED" as const
-          },
-          bird: { loft: { userId: id } }
-        },
-      ],
-    } : baseWhereClause;
     
     const [wins, totalWins] = await prisma.$transaction([
       prisma.raceEntry.findMany({
@@ -832,6 +844,15 @@ const createRace = async (req: Request, res: Response) => {
       });
       return;
     }
+    
+    // Validate file upload
+    if (!req.file) {
+      res.status(400).json({
+        error: "Race photo is required",
+      });
+      return;
+    }
+    
     let race = await prisma.race.create({
       data: {
         name: validatedBody.data.name,
@@ -846,12 +867,14 @@ const createRace = async (req: Request, res: Response) => {
         description: validatedBody.data.description,
       },
     });
-    const key = `races/${race.id}-${Date.now()}.${
-      req.file?.mimetype.split("/")[1]
-    }`;
-    await s3Client.write(key, req.file?.buffer as Buffer, {
+    
+    const fileExtension = req.file.mimetype.split("/")[1];
+    const key = `races/${race.id}-${Date.now()}.${fileExtension}`;
+    
+    await s3Client.write(key, req.file.buffer, {
       acl: "public-read",
     });
+    
     const url = `${process.env.CLOUDFLARE_PUBLIC_URL}/${key}`;
     race = await prisma.race.update({
       where: {
@@ -861,12 +884,13 @@ const createRace = async (req: Request, res: Response) => {
         photoUrl: url,
       },
     });
+    
     res.status(201).json({
       message: "Race created successfully",
       data: race,
     });
   } catch (error) {
-    console.error("Error creating races :", error);
+    console.error("Error creating race:", error);
     res.status(500).json({
       error: "Internal server error",
     });
