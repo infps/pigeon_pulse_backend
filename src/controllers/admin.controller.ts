@@ -77,7 +77,7 @@ const getUsers = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const validatedQuery = getQueryParams.safeParse(req.query);
   if (!validatedQuery.success) {
     res.status(400).json({
@@ -86,22 +86,24 @@ const getUsers = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const { page = 1, search } = validatedQuery.data;
   const limit = 10;
   const offset = (page - 1) * limit;
-  
+
   try {
-    const whereClause = search ? {
-      OR: [
-        { name: { contains: search, mode: "insensitive" as const } },
-        { email: { contains: search, mode: "insensitive" as const } },
-      ],
-    } : {};
-    
+    const whereClause = search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" as const } },
+            { email: { contains: search, mode: "insensitive" as const } },
+          ],
+        }
+      : {};
+
     const [users, totalUsers] = await prisma.$transaction([
       prisma.user.findMany({
-        where: whereClause,
+        where: { ...whereClause, role: "user" },
         select: {
           id: true,
           name: true,
@@ -116,12 +118,12 @@ const getUsers = async (req: Request, res: Response) => {
         },
       }),
       prisma.user.count({
-        where: whereClause,
+        where: { ...whereClause, role: "user" },
       }),
     ]);
-    
+
     const totalPages = Math.ceil(totalUsers / limit);
-    
+
     res.status(200).json({
       message: "Users fetched successfully",
       data: users,
@@ -206,7 +208,7 @@ const getUserSummary = async (req: Request, res: Response) => {
     return;
   }
   const { id } = validatedParams.data;
-  
+
   try {
     const user = await prisma.user.findUnique({
       where: { id },
@@ -217,7 +219,7 @@ const getUserSummary = async (req: Request, res: Response) => {
       });
       return;
     }
-    
+
     const [totalBirds, racesJoined, totalWins, paidAmount] =
       await prisma.$transaction([
         prisma.bird.count({
@@ -327,7 +329,7 @@ const getBirdByUserId = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const validatedParams = getIdParams.safeParse(req.params);
   if (!validatedParams.success) {
     res.status(400).json({
@@ -336,7 +338,7 @@ const getBirdByUserId = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const validatedQuery = getQueryParams.safeParse(req.query);
   if (!validatedQuery.success) {
     res.status(400).json({
@@ -345,12 +347,12 @@ const getBirdByUserId = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const { id } = validatedParams.data;
   const { page = 1, search } = validatedQuery.data;
   const limit = 10;
   const offset = (page - 1) * limit;
-  
+
   try {
     const whereClause = {
       loft: {
@@ -365,7 +367,7 @@ const getBirdByUserId = async (req: Request, res: Response) => {
         ],
       }),
     };
-    
+
     const [birds, totalBirds] = await prisma.$transaction([
       prisma.bird.findMany({
         where: whereClause,
@@ -393,9 +395,9 @@ const getBirdByUserId = async (req: Request, res: Response) => {
         where: whereClause,
       }),
     ]);
-    
+
     const totalPages = Math.ceil(totalBirds / limit);
-    
+
     res.status(200).json({
       message: "Birds fetched successfully",
       data: birds,
@@ -428,7 +430,7 @@ const getRacesJoined = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const validatedParams = getIdParams.safeParse(req.params);
   if (!validatedParams.success) {
     res.status(400).json({
@@ -437,7 +439,7 @@ const getRacesJoined = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const validatedQuery = getQueryParams.safeParse(req.query);
   if (!validatedQuery.success) {
     res.status(400).json({
@@ -446,12 +448,12 @@ const getRacesJoined = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const { id } = validatedParams.data;
   const { page = 1, search } = validatedQuery.data;
   const limit = 10;
   const offset = (page - 1) * limit;
-  
+
   try {
     const whereClause = {
       bird: {
@@ -461,13 +463,21 @@ const getRacesJoined = async (req: Request, res: Response) => {
       },
       ...(search && {
         OR: [
-          { bird: { name: { contains: search, mode: "insensitive" as const } } },
-          { bird: { bandNumber: { contains: search, mode: "insensitive" as const } } },
-          { race: { name: { contains: search, mode: "insensitive" as const } } },
+          {
+            bird: { name: { contains: search, mode: "insensitive" as const } },
+          },
+          {
+            bird: {
+              bandNumber: { contains: search, mode: "insensitive" as const },
+            },
+          },
+          {
+            race: { name: { contains: search, mode: "insensitive" as const } },
+          },
         ],
       }),
     };
-    
+
     const [racesJoined, totalRaces] = await prisma.$transaction([
       prisma.raceEntry.findMany({
         where: whereClause,
@@ -497,9 +507,9 @@ const getRacesJoined = async (req: Request, res: Response) => {
         where: whereClause,
       }),
     ]);
-    
+
     const totalPages = Math.ceil(totalRaces / limit);
-    
+
     res.status(200).json({
       message: "Fetched races joined successfully",
       data: racesJoined,
@@ -531,7 +541,7 @@ const getWinsByUser = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const validatedParams = getIdParams.safeParse(req.params);
   if (!validatedParams.success) {
     res.status(400).json({
@@ -540,7 +550,7 @@ const getWinsByUser = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const validatedQuery = getQueryParams.safeParse(req.query);
   if (!validatedQuery.success) {
     res.status(400).json({
@@ -549,12 +559,12 @@ const getWinsByUser = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const { id } = validatedParams.data;
   const { page = 1, search } = validatedQuery.data;
   const limit = 10;
   const offset = (page - 1) * limit;
-  
+
   try {
     const whereClause = {
       bird: {
@@ -567,28 +577,28 @@ const getWinsByUser = async (req: Request, res: Response) => {
       },
       ...(search && {
         OR: [
-          { 
-            bird: { 
+          {
+            bird: {
               name: { contains: search, mode: "insensitive" as const },
-              loft: { userId: id }
-            }
+              loft: { userId: id },
+            },
           },
-          { 
-            bird: { 
+          {
+            bird: {
               bandNumber: { contains: search, mode: "insensitive" as const },
-              loft: { userId: id }
-            }
+              loft: { userId: id },
+            },
           },
-          { 
-            race: { 
+          {
+            race: {
               name: { contains: search, mode: "insensitive" as const },
-              status: "COMPLETED" as const
-            }
+              status: "COMPLETED" as const,
+            },
           },
         ],
       }),
     };
-    
+
     const [wins, totalWins] = await prisma.$transaction([
       prisma.raceEntry.findMany({
         where: whereClause,
@@ -617,9 +627,9 @@ const getWinsByUser = async (req: Request, res: Response) => {
         where: whereClause,
       }),
     ]);
-    
+
     const totalPages = Math.ceil(totalWins / limit);
-    
+
     res.status(200).json({
       message: "Wins fetched successfully",
       data: wins,
@@ -661,7 +671,7 @@ const getPaymentsByUser = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const validatedQuery = getQueryParams.safeParse(req.query);
   if (!validatedQuery.success) {
     res.status(400).json({
@@ -670,7 +680,7 @@ const getPaymentsByUser = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const { id } = validatedParams.data;
   const { page = 1, search } = validatedQuery.data;
   const limit = 10;
@@ -681,12 +691,28 @@ const getPaymentsByUser = async (req: Request, res: Response) => {
       userId: id,
       ...(search && {
         OR: [
-          { raceEntries: { some: { bird: { name: { contains: search, mode: "insensitive" as const } } } } },
-          { raceEntries: { some: { race: { name: { contains: search, mode: "insensitive" as const } } } } },
+          {
+            raceEntries: {
+              some: {
+                bird: {
+                  name: { contains: search, mode: "insensitive" as const },
+                },
+              },
+            },
+          },
+          {
+            raceEntries: {
+              some: {
+                race: {
+                  name: { contains: search, mode: "insensitive" as const },
+                },
+              },
+            },
+          },
         ],
       }),
     };
-    
+
     const [payments, totalPayments] = await prisma.$transaction([
       prisma.payment.findMany({
         where: whereClause,
@@ -722,9 +748,9 @@ const getPaymentsByUser = async (req: Request, res: Response) => {
         where: whereClause,
       }),
     ]);
-    
+
     const totalPages = Math.ceil(totalPayments / limit);
-    
+
     res.status(200).json({
       message: "Payments fetched successfully",
       data: payments,
@@ -766,20 +792,24 @@ const getRaces = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const { page = 1, search } = validatedQuery.data;
   const limit = 10;
   const offset = (page - 1) * limit;
 
   try {
-    const whereClause = search ? {
-      OR: [
-        { name: { contains: search, mode: "insensitive" as const } },
-        { startLocation: { contains: search, mode: "insensitive" as const } },
-        { endLocation: { contains: search, mode: "insensitive" as const } },
-      ],
-    } : {};
-    
+    const whereClause = search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" as const } },
+            {
+              startLocation: { contains: search, mode: "insensitive" as const },
+            },
+            { endLocation: { contains: search, mode: "insensitive" as const } },
+          ],
+        }
+      : {};
+
     const [races, totalRaces] = await prisma.$transaction([
       prisma.race.findMany({
         where: whereClause,
@@ -800,9 +830,9 @@ const getRaces = async (req: Request, res: Response) => {
         where: whereClause,
       }),
     ]);
-    
+
     const totalPages = Math.ceil(totalRaces / limit);
-    
+
     res.status(200).json({
       message: "Races fetched successfully",
       data: races,
@@ -844,7 +874,7 @@ const createRace = async (req: Request, res: Response) => {
       });
       return;
     }
-    
+
     // Validate file upload
     if (!req.file) {
       res.status(400).json({
@@ -852,7 +882,7 @@ const createRace = async (req: Request, res: Response) => {
       });
       return;
     }
-    
+
     let race = await prisma.race.create({
       data: {
         name: validatedBody.data.name,
@@ -867,14 +897,14 @@ const createRace = async (req: Request, res: Response) => {
         description: validatedBody.data.description,
       },
     });
-    
+
     const fileExtension = req.file.mimetype.split("/")[1];
     const key = `races/${race.id}.${fileExtension}`;
-    
+
     await s3Client.write(key, req.file.buffer, {
       acl: "public-read",
     });
-    
+
     const url = `${process.env.CLOUDFLARE_PUBLIC_URL}/${key}`;
     race = await prisma.race.update({
       where: {
@@ -884,7 +914,7 @@ const createRace = async (req: Request, res: Response) => {
         photoUrl: url,
       },
     });
-    
+
     res.status(201).json({
       message: "Race created successfully",
       data: race,
@@ -1016,7 +1046,7 @@ const getAllPayments = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const validatedQuery = getQueryParams.safeParse(req.query);
   if (!validatedQuery.success) {
     res.status(400).json({
@@ -1025,21 +1055,47 @@ const getAllPayments = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const { page = 1, search } = validatedQuery.data;
   const limit = 10;
   const offset = (page - 1) * limit;
-  
+
   try {
-    const whereClause = search ? {
-      OR: [
-        { user: { name: { contains: search, mode: "insensitive" as const } } },
-        { user: { email: { contains: search, mode: "insensitive" as const } } },
-        { raceEntries: { some: { race: { name: { contains: search, mode: "insensitive" as const } } } } },
-        { raceEntries: { some: { bird: { name: { contains: search, mode: "insensitive" as const } } } } },
-      ],
-    } : {};
-    
+    const whereClause = search
+      ? {
+          OR: [
+            {
+              user: {
+                name: { contains: search, mode: "insensitive" as const },
+              },
+            },
+            {
+              user: {
+                email: { contains: search, mode: "insensitive" as const },
+              },
+            },
+            {
+              raceEntries: {
+                some: {
+                  race: {
+                    name: { contains: search, mode: "insensitive" as const },
+                  },
+                },
+              },
+            },
+            {
+              raceEntries: {
+                some: {
+                  bird: {
+                    name: { contains: search, mode: "insensitive" as const },
+                  },
+                },
+              },
+            },
+          ],
+        }
+      : {};
+
     const [payments, totalPayments] = await prisma.$transaction([
       prisma.payment.findMany({
         where: whereClause,
@@ -1079,9 +1135,9 @@ const getAllPayments = async (req: Request, res: Response) => {
         where: whereClause,
       }),
     ]);
-    
+
     const totalPages = Math.ceil(totalPayments / limit);
-    
+
     res.status(200).json({
       message: "Payments fetched successfully",
       data: payments,
@@ -1114,7 +1170,7 @@ const getRaceStatistics = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const validatedQuery = getQueryParams.safeParse(req.query);
   if (!validatedQuery.success) {
     res.status(400).json({
@@ -1123,11 +1179,11 @@ const getRaceStatistics = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const { page = 1, search } = validatedQuery.data;
   const limit = 10;
   const offset = (page - 1) * limit;
-  
+
   try {
     const whereClause = {
       status: "COMPLETED" as const,
@@ -1135,7 +1191,7 @@ const getRaceStatistics = async (req: Request, res: Response) => {
         name: { contains: search, mode: "insensitive" as const },
       }),
     };
-    
+
     const [raceStats, totalRaces] = await prisma.$transaction([
       prisma.race.findMany({
         where: whereClause,
@@ -1175,9 +1231,9 @@ const getRaceStatistics = async (req: Request, res: Response) => {
         where: whereClause,
       }),
     ]);
-    
+
     const totalPages = Math.ceil(totalRaces / limit);
-    
+
     res.status(200).json({
       message: "Race stats fetched successfully",
       data: raceStats,
@@ -1218,7 +1274,7 @@ const getRaceStatisticsById = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const validatedQuery = getQueryParams.safeParse(req.query);
   if (!validatedQuery.success) {
     res.status(400).json({
@@ -1227,12 +1283,12 @@ const getRaceStatisticsById = async (req: Request, res: Response) => {
     });
     return;
   }
-  
+
   const { id } = validatedParams.data;
   const { page = 1, search } = validatedQuery.data;
   const limit = 10;
   const offset = (page - 1) * limit;
-  
+
   try {
     const race = await prisma.race.findUnique({
       where: { id },
@@ -1241,18 +1297,30 @@ const getRaceStatisticsById = async (req: Request, res: Response) => {
       res.status(404).json({ error: "Race not found" });
       return;
     }
-    
+
     const entryWhereClause = {
       raceId: id,
       ...(search && {
         OR: [
-          { bird: { name: { contains: search, mode: "insensitive" as const } } },
-          { bird: { bandNumber: { contains: search, mode: "insensitive" as const } } },
-          { bird: { loft: { name: { contains: search, mode: "insensitive" as const } } } },
+          {
+            bird: { name: { contains: search, mode: "insensitive" as const } },
+          },
+          {
+            bird: {
+              bandNumber: { contains: search, mode: "insensitive" as const },
+            },
+          },
+          {
+            bird: {
+              loft: {
+                name: { contains: search, mode: "insensitive" as const },
+              },
+            },
+          },
         ],
       }),
     };
-    
+
     const [entries, totalEntries] = await prisma.$transaction([
       prisma.raceEntry.findMany({
         where: entryWhereClause,
@@ -1282,15 +1350,15 @@ const getRaceStatisticsById = async (req: Request, res: Response) => {
         where: entryWhereClause,
       }),
     ]);
-    
+
     const totalPages = Math.ceil(totalEntries / limit);
-    
+
     const raceStats = {
       id: race.id,
       name: race.name,
       entries,
     };
-    
+
     res.status(200).json({
       message: "Race statistics fetched successfully",
       data: raceStats,
