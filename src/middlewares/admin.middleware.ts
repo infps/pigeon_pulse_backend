@@ -10,7 +10,6 @@ export async function adminMiddleware(
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(req.headers),
   });
-  console.log(session);
   if (
     !session ||
     !session.user ||
