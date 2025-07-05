@@ -44,8 +44,8 @@ model Loft {
   loftId     String       @unique // Unique public-facing ID
   name       String
   location   String
-  user       User         @relation("LoftOwner", fields: [userId], references: [id])
   userId     String
+  user       User         @relation("LoftOwner", fields: [userId], references: [id], onDelete: Cascade)
   birds      Bird[]
   sharedWith SharedLoft[]
   invitations LoftInvitation[]
@@ -54,9 +54,9 @@ model Loft {
 
 model SharedLoft {
   id     String @id @default(uuid())
-  loft   Loft   @relation(fields: [loftId], references: [id])
+  loft   Loft   @relation(fields: [loftId], references: [id], onDelete: Cascade)
   loftId String
-  user   User   @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String
 
   // prevent duplicate sharing
@@ -83,7 +83,7 @@ model Bird {
   raceExperience    Int?        @default(0)
   status            BirdStatus  @default(ACTIVE)
   rfIdTag           String?     @unique
-  loft              Loft        @relation(fields: [loftId], references: [id])
+  loft              Loft        @relation(fields: [loftId], references: [id], onDelete: Cascade)
   loftId            String
   raceEntries       RaceEntry[]
   createdAt         DateTime    @default(now())
@@ -91,11 +91,11 @@ model Bird {
 
 model LoftInvitation {
   id         String      @id @default(uuid())
-  loft       Loft        @relation(fields: [loftId], references: [id])
+  loft       Loft        @relation(fields: [loftId], references: [id], onDelete: Cascade)
   loftId     String
-  invitedBy  User        @relation("Inviter", fields: [invitedById], references: [id])
+  invitedBy  User        @relation("Inviter", fields: [invitedById], references: [id], onDelete: Cascade)
   invitedById String
-  invitedUser User?      @relation("Invitee", fields: [invitedUserId], references: [id])
+  invitedUser User?      @relation("Invitee", fields: [invitedUserId], references: [id], onDelete: Cascade)
   invitedUserId String?  // Nullable if you're inviting by email only
   status     InvitationStatus @default(PENDING)
   createdAt  DateTime    @default(now())
@@ -143,13 +143,13 @@ enum RaceStatus {
 
 model RaceEntry {
   id          String         @id @default(uuid())
-  race        Race           @relation(fields: [raceId], references: [id])
+  race        Race           @relation(fields: [raceId], references: [id], onDelete: Cascade)
   raceId      String
-  bird        Bird           @relation(fields: [birdId], references: [id])
+  bird        Bird           @relation(fields: [birdId], references: [id], onDelete: Cascade)
   birdId      String
-  user        User           @relation(fields: [userId], references: [id])
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      String
-  payment     Payment?       @relation(fields: [paymentId], references: [id])
+  payment     Payment?       @relation(fields: [paymentId], references: [id], onDelete: SetNull)
   paymentId   String?
   status      EntryStatus    @default(PENDING)
   birdStatus  BirdRaceStatus @default(UNKNOWN)
@@ -183,7 +183,7 @@ model Payment {
   currency            String        @default("USD")
   status              PaymentStatus
   paymentTime         DateTime
-  user                User          @relation(fields: [userId], references: [id])
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId              String
   raceEntries         RaceEntry[]
   createdAt           DateTime      @default(now())

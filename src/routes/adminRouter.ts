@@ -2,6 +2,7 @@ import { Router } from "express";
 import { adminMiddleware } from "../middlewares/admin.middleware";
 import {
   createRace,
+  deleteRace,
   getAllPayments,
   getBirdByUserId,
   getDashboardData,
@@ -31,6 +32,7 @@ adminRouter.get("/users/races/:id", adminMiddleware, getRacesJoined);
 adminRouter.get("/users/wins/:id", adminMiddleware, getWinsByUser);
 adminRouter.get("/users/payments/:id", adminMiddleware, getPaymentsByUser);
 adminRouter.get("/races", adminMiddleware, getRaces);
+adminRouter.delete("races/:id", adminMiddleware, deleteRace);
 adminRouter.post(
   "/races/create",
   adminMiddleware,

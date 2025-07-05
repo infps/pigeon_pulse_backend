@@ -857,6 +857,47 @@ const getRaces = async (req: Request, res: Response) => {
   }
 };
 
+const deleteRace = async (req: Request, res: Response) => {
+  if (
+    !req.session ||
+    !req.user ||
+    !req.user.role ||
+    req.user.role !== "admin"
+  ) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  }
+  const validatedParams = getIdParams.safeParse(req.params);
+  if (!validatedParams.success) {
+    res.status(400).json({
+      error: "Invalid Race ID",
+      details: validatedParams.error.errors,
+    });
+    return;
+  }
+  const { id } = validatedParams.data;
+  try {
+    const race = await prisma.race.findUnique({
+      where: { id },
+    });
+    if (!race) {
+      res.status(404).json({ error: "Race deleted successfully" });
+      return;
+    }
+    await prisma.race.delete({
+      where: { id },
+    });
+    res.status(200).json({ message: "Race deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting race:", error);
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+
 const createRace = async (req: Request, res: Response) => {
   if (
     !req.session ||
@@ -1400,4 +1441,5 @@ export {
   getAllPayments,
   getRaceStatistics,
   getRaceStatisticsById,
+  deleteRace,
 };
