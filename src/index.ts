@@ -6,10 +6,13 @@ import type { Session, User } from "better-auth";
 import { adminRouter } from "./routes/adminRouter";
 import { userRouter } from "./routes/user.router";
 const app = express();
-
+const PORT = process.env.PORT || 4000;
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: [
+      process.env.FRONTEND_URL as string,
+      process.env.ADMIN_URL as string,
+    ],
     credentials: true,
   })
 );
@@ -22,8 +25,8 @@ app.get("/", (req, res) => {
 app.use("/api/admin", adminRouter);
 app.use("/api/user", userRouter);
 
-app.listen(4000, () => {
-  console.log("Server is running on http://localhost:4000");
+app.listen(PORT, () => {
+  console.log("Server is running on "+ process.env.BETTER_AUTH_URL);
 });
 
 declare global {

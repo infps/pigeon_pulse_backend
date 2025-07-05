@@ -18,14 +18,17 @@ export const auth = betterAuth({
   },
   trustedOrigins: [
     process.env.FRONTEND_URL as string,
+    process.env.ADMIN_URL as string,
     process.env.BETTER_AUTH_URL as string,
   ],
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       if (
         ctx.path === "/sign-in/email" &&
-        ctx.headers?.get("origin") === process.env.ADMIN_URL &&
-        ctx.body?.email !== process.env.ADMIN_EMAIL
+        ((ctx.headers?.get("origin") === process.env.ADMIN_URL &&
+          ctx.body?.email !== process.env.ADMIN_EMAIL) ||
+          (ctx.headers?.get("origin") === process.env.FRONTEND_URL &&
+            ctx.body?.email === process.env.ADMIN_EMAIL))
       ) {
         throw new APIError("UNAUTHORIZED", {
           message: "You are not authorized to access this resource.",
