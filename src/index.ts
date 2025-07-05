@@ -3,9 +3,6 @@ import cors from "cors";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth";
 import type { Session, User } from "better-auth";
-import raceRouter from "./routes/race.router";
-import { userRouter } from "./routes/user.router";
-import { paymentsRouter } from "./routes/payments.router";
 import { adminRouter } from "./routes/adminRouter";
 const app = express();
 
@@ -18,10 +15,10 @@ app.use(
 app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use(express.json());
+app.get("/", (req, res) => {
+  res.send("Welcome to the API");
+});
 app.use("/api/admin", adminRouter);
-app.use("/api/races", raceRouter);
-app.use("/api/user", userRouter);
-app.use("/api/payments", paymentsRouter);
 
 app.listen(4000, () => {
   console.log("Server is running on http://localhost:4000");
