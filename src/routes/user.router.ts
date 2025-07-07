@@ -29,7 +29,6 @@ userRouter.get("/payments", authMiddleware, getMyPayments);
 userRouter.post(
   "/lofts/create",
   authMiddleware,
-  upload.single("photo"),
   createLoft
 );
 userRouter.put("/lofts/:id", authMiddleware, updateLoft);

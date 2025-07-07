@@ -5,6 +5,7 @@ import { auth } from "./lib/auth";
 import type { Session, User } from "better-auth";
 import { adminRouter } from "./routes/adminRouter";
 import { userRouter } from "./routes/user.router";
+import { raceRouter } from "./routes/race.router";
 const app = express();
 const PORT = process.env.PORT || 4000;
 app.use(
@@ -24,9 +25,10 @@ app.get("/", (req, res) => {
 });
 app.use("/api/admin", adminRouter);
 app.use("/api/user", userRouter);
+app.use("/api/race", raceRouter);
 
 app.listen(PORT, () => {
-  console.log("Server is running on "+ process.env.BETTER_AUTH_URL);
+  console.log("Server is running on " + process.env.BETTER_AUTH_URL);
 });
 
 declare global {
