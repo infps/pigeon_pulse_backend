@@ -101,6 +101,7 @@ const getMyLofts = async (req: Request, res: Response) => {
         id: true,
         name: true,
         loftId: true,
+        location: true,
       },
     });
     res.status(200).json({
@@ -161,22 +162,24 @@ const getLoftById = async (req: Request, res: Response) => {
       });
       return;
     }
-    
+
     // Check if the user owns the loft or has been shared with
-    const hasAccess = loft.userId === req.user.id || await prisma.sharedLoft.findFirst({
-      where: {
-        loftId: loft.id,
-        userId: req.user.id,
-      },
-    });
-    
+    const hasAccess =
+      loft.userId === req.user.id ||
+      (await prisma.sharedLoft.findFirst({
+        where: {
+          loftId: loft.id,
+          userId: req.user.id,
+        },
+      }));
+
     if (!hasAccess) {
       res.status(403).json({
         message: "You are not authorized to access this loft.",
       });
       return;
     }
-    
+
     res.status(200).json({
       message: "Loft retrieved successfully.",
       data: loft,
@@ -328,12 +331,12 @@ const createLoft = async (req: Request, res: Response) => {
   }
   try {
     const { name, location } = validatedBody.data;
-    
+
     // Use a transaction to avoid race conditions in loft ID generation
     const newLoft = await prisma.$transaction(async (tx) => {
       const loftCount = await tx.loft.count();
       const loftId = `LOFT-${loftCount + 1}`;
-      
+
       return await tx.loft.create({
         data: {
           name,
@@ -343,7 +346,7 @@ const createLoft = async (req: Request, res: Response) => {
         },
       });
     });
-    
+
     res.status(201).json({
       message: "Loft created successfully.",
       data: newLoft,
@@ -383,26 +386,26 @@ const updateLoft = async (req: Request, res: Response) => {
   try {
     const { id } = validatedParams.data;
     const { name, location } = validatedBody.data;
-    
+
     // Check if the loft exists and belongs to the user
     const existingLoft = await prisma.loft.findUnique({
       where: { id },
     });
-    
+
     if (!existingLoft) {
       res.status(404).json({
         message: "Loft not found.",
       });
       return;
     }
-    
+
     if (existingLoft.userId !== req.user.id) {
       res.status(403).json({
         message: "You are not authorized to update this loft.",
       });
       return;
     }
-    
+
     const updatedLoft = await prisma.loft.update({
       where: { id },
       data: { name, location },
@@ -447,22 +450,24 @@ const createBird = async (req: Request, res: Response) => {
       });
       return;
     }
-    
+
     // Check if the user owns the loft or has been shared with
-    const hasAccess = loft.userId === req.user.id || await prisma.sharedLoft.findFirst({
-      where: {
-        loftId: loft.id,
-        userId: req.user.id,
-      },
-    });
-    
+    const hasAccess =
+      loft.userId === req.user.id ||
+      (await prisma.sharedLoft.findFirst({
+        where: {
+          loftId: loft.id,
+          userId: req.user.id,
+        },
+      }));
+
     if (!hasAccess) {
       res.status(403).json({
         message: "You are not authorized to create birds in this loft.",
       });
       return;
     }
-    
+
     const validatedBody = createBirdBody.safeParse(req.body);
     if (!validatedBody.success) {
       res.status(400).json({
@@ -554,7 +559,7 @@ const updateBird = async (req: Request, res: Response) => {
       });
       return;
     }
-    
+
     // Check if the user owns the loft that contains this bird
     if (bird.loft.userId !== req.user.id) {
       res.status(403).json({
@@ -562,7 +567,7 @@ const updateBird = async (req: Request, res: Response) => {
       });
       return;
     }
-    
+
     const updatedBird = await prisma.bird.update({
       where: { id },
       data: validatedBody.data,
@@ -608,7 +613,7 @@ const inviteToLoft = async (req: Request, res: Response) => {
       });
       return;
     }
-    
+
     // Check if the user owns the loft before allowing invitations
     if (loft.userId !== req.user.id) {
       res.status(403).json({
@@ -616,7 +621,7 @@ const inviteToLoft = async (req: Request, res: Response) => {
       });
       return;
     }
-    
+
     const user = await prisma.user.findUnique({
       where: {
         id: userId,
