@@ -15,6 +15,8 @@ import {
   acceptLoftInvitation,
   rejectLoftInvitation,
   getLoftInvitations,
+  getBirdById,
+  listUsersByEmail,
 } from "../controllers/user.controller";
 import upload from "../lib/multer";
 
@@ -26,20 +28,18 @@ userRouter.get("/lofts/:id", authMiddleware, getLoftById);
 userRouter.get("/shared-lofts", authMiddleware, getSharedLofts);
 userRouter.get("/races", authMiddleware, getMyRaces);
 userRouter.get("/payments", authMiddleware, getMyPayments);
-userRouter.post(
-  "/lofts/create",
-  authMiddleware,
-  createLoft
-);
+userRouter.post("/lofts/create", authMiddleware, createLoft);
 userRouter.put("/lofts/:id", authMiddleware, updateLoft);
 userRouter.post(
-  "/birds/create",
+  "/lofts/:id/birds/create",
   authMiddleware,
   upload.single("photo"),
   createBird
 );
 userRouter.put("/birds/:id", authMiddleware, updateBird);
-userRouter.post("/lofts/invite/:loftId/:userId", authMiddleware, inviteToLoft);
+userRouter.get("/birds/:id", authMiddleware, getBirdById);
+userRouter.get("/", authMiddleware, listUsersByEmail);
+userRouter.post("/lofts/invite/:loftid", authMiddleware, inviteToLoft);
 userRouter.post(
   "/lofts/invitations/accept/:id",
   authMiddleware,

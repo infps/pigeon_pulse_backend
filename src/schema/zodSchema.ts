@@ -142,14 +142,40 @@ export const createBirdBody = z.object({
   gender: z.enum(["MALE", "FEMALE"], {
     message: "Invalid Gender",
   }),
-  age: z.number().int().min(0, "Age must be a non-negative integer").optional(),
-  wingspan: z
-    .number()
-    .positive("Wingspan must be a positive number")
-    .optional(),
-  vaccinationStatus: z.boolean().default(false),
+  age: z.preprocess((value) => {
+    if (typeof value === "string") {
+      const num = parseInt(value, 10);
+      if (!isNaN(num) && num >= 0) {
+        return num;
+      }
+    }
+    return null;
+  }, z.number().int().min(0, "Age must be a non-negative integer")),
+  wingspan: z.preprocess((value) => {
+    if (typeof value === "string") {
+      const num = parseFloat(value);
+      if (!isNaN(num) && num > 0) {
+        return num;
+      }
+    }
+    return null;
+  }, z.number().positive("Wingspan must be a positive number")),
+  vaccinationStatus: z.preprocess((value) => {
+    if (typeof value === "string") {
+      return value.toLowerCase() === "true";
+    }
+    return value === true;
+  }, z.boolean().default(false)),
   penNumber: z.string().optional(),
-  raceExperience: z.number().int().optional(),
+  raceExperience: z.preprocess((value) => {
+    if (typeof value === "string") {
+      const num = parseInt(value, 10);
+      if (!isNaN(num) && num >= 0) {
+        return num;
+      }
+    }
+    return null;
+  }, z.number().int().min(0, "Race experience must be a non-negative integer")),
   status: z
     .enum(["ACTIVE", "MISSING", "HOSPITALIZED"], {
       message: "Status must be one of ACTIVE, INACTIVE, or RETIRED",
@@ -175,7 +201,11 @@ export const updateBirdBody = z.object({
     .optional(),
   vaccinationStatus: z.boolean().default(false).optional(),
   penNumber: z.string().optional(),
-  raceExperience: z.number().int().optional(),
+  raceExperience: z
+    .number()
+    .int()
+    .min(0, "Race experience must be a non-negative integer")
+    .optional(),
   status: z
     .enum(["ACTIVE", "MISSING", "HOSPITALIZED"], {
       message: "Status must be one of ACTIVE, MISSING, or HOSPITALIZED",
@@ -186,6 +216,9 @@ export const updateBirdBody = z.object({
 
 export const inviteToLobyParams = z.object({
   loftid: z.string(),
+});
+
+export const inviteToLobbyBody = z.object({
   userId: z.string(),
 });
 
@@ -195,4 +228,8 @@ export const createRaceOrderBody = z.object({
       message: "Bird IDs must be an array of strings",
     })
     .min(1, "At least one bird ID is required"),
+});
+
+export const getUsersByEmailQuery = z.object({
+  email: z.string(),
 });

@@ -6,6 +6,8 @@ import {
   getIdParams,
   getQueryParams,
   getRaceQueryParams,
+  getUsersByEmailQuery,
+  inviteToLobbyBody,
   inviteToLobyParams,
   updateBirdBody,
   updateLoftBody,
@@ -248,6 +250,23 @@ const getMyRaces = async (req: Request, res: Response) => {
             : undefined,
         },
       },
+      include: {
+        race: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+          },
+        },
+        bird: {
+          select: {
+            id: true,
+            name: true,
+            breed: true,
+            rfIdTag: true,
+          },
+        },
+      },
     });
     res.status(200).json({
       message: "Races retrieved successfully.",
@@ -257,6 +276,52 @@ const getMyRaces = async (req: Request, res: Response) => {
     console.error("Error retrieving races:", error);
     res.status(500).json({
       message: "An error occurred while retrieving races.",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+const listUsersByEmail = async (req: Request, res: Response) => {
+  if (!req.user || !req.session) {
+    res.status(401).json({
+      message: "Unauthorized access. Please log in.",
+    });
+    return;
+  }
+  try {
+    const validatedQuery = getUsersByEmailQuery.safeParse(req.query);
+    if (!validatedQuery.success) {
+      res.status(400).json({
+        message: "Invalid query parameters.",
+        error: validatedQuery.error.errors,
+      });
+      return;
+    }
+    const { email } = validatedQuery.data;
+    const users = await prisma.user.findMany({
+      where: {
+        email: {
+          contains: email,
+          mode: "insensitive", // Case-insensitive search
+        },
+        //exclude the current user from the results
+        id: { not: req.user.id },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+      take: 5,
+    });
+    res.status(200).json({
+      message: "Users retrieved successfully.",
+      data: users,
+    });
+  } catch (error) {
+    console.error("Error retrieving users by email:", error);
+    res.status(500).json({
+      message: "An error occurred while retrieving users.",
       error: error instanceof Error ? error.message : "Unknown error",
     });
   }
@@ -281,10 +346,6 @@ const getMyPayments = async (req: Request, res: Response) => {
               select: {
                 id: true,
                 name: true,
-                date: true,
-                distanceKm: true,
-                startLocation: true,
-                endLocation: true,
               },
             },
             bird: {
@@ -518,6 +579,75 @@ const createBird = async (req: Request, res: Response) => {
   }
 };
 
+const getBirdById = async (req: Request, res: Response) => {
+  if (!req.user || !req.session) {
+    res.status(401).json({
+      message: "Unauthorized access. Please log in.",
+    });
+    return;
+  }
+  const validatedParams = getIdParams.safeParse(req.params);
+  if (!validatedParams.success) {
+    res.status(400).json({
+      message: "Invalid bird ID.",
+      error: validatedParams.error.errors,
+    });
+    return;
+  }
+  try {
+    const { id } = validatedParams.data;
+    const bird = await prisma.bird.findFirst({
+      where: {
+        id: id,
+        OR: [
+          {
+            loft: {
+              userId: req.user.id, // owner of the loft
+            },
+          },
+          {
+            loft: {
+              sharedWith: {
+                some: {
+                  userId: req.user.id, // shared with this user
+                },
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        _count: {
+          select: {
+            raceEntries: true,
+          },
+        },
+        loft: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+    if (!bird) {
+      res.status(404).json({
+        message: "Bird not found.",
+      });
+      return;
+    }
+    res.status(200).json({
+      message: "Bird retrieved successfully.",
+      data: bird,
+    });
+  } catch (error) {
+    console.error("Error retrieving bird:", error);
+    res.status(500).json({
+      message: "An error occurred while retrieving the bird.",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
 const updateBird = async (req: Request, res: Response) => {
   if (!req.user || !req.session) {
     res.status(401).json({
@@ -533,8 +663,10 @@ const updateBird = async (req: Request, res: Response) => {
     });
     return;
   }
+  console.log(req.body);
   const validatedBody = updateBirdBody.safeParse(req.body);
   if (!validatedBody.success) {
+    // console.log(req.body)
     res.status(400).json({
       message: "Invalid bird data.",
       error: validatedBody.error.errors,
@@ -600,7 +732,16 @@ const inviteToLoft = async (req: Request, res: Response) => {
     });
     return;
   }
-  const { loftid, userId } = validatedParams.data;
+  const validatedBody = inviteToLobbyBody.safeParse(req.body);
+  if (!validatedBody.success) {
+    res.status(400).json({
+      message: "Invalid user ID.",
+      error: validatedBody.error.errors,
+    });
+    return;
+  }
+  const { userId } = validatedBody.data;
+  const { loftid } = validatedParams.data;
   try {
     const loft = await prisma.loft.findUnique({
       where: {
@@ -822,10 +963,12 @@ export {
   getMyPayments,
   createLoft,
   updateLoft,
+  getBirdById,
   createBird,
   updateBird,
   inviteToLoft,
   acceptLoftInvitation,
   rejectLoftInvitation,
   getLoftInvitations,
+  listUsersByEmail,
 };
