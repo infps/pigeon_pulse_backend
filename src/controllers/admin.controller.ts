@@ -950,7 +950,7 @@ const createRace = async (req: Request, res: Response) => {
       acl: "public-read",
     });
 
-    const url = `${process.env.CLOUDFLARE_PUBLIC_URL}/${key}`;
+    const url = `${process.env.S3_PUBLIC_URL}/${key}`;
     race = await prisma.race.update({
       where: {
         id: race.id,
@@ -1424,6 +1424,85 @@ const getRaceStatisticsById = async (req: Request, res: Response) => {
   }
 };
 
+const getHospitality = async (req: Request, res: Response) => {
+  if (
+    !req.session ||
+    !req.user ||
+    !req.user.role ||
+    req.user.role !== "admin"
+  ) {
+    res.status(401).json({
+      error: "Unauthorized",
+    });
+    return;
+  }
+  const validatedQuery = getQueryParams.safeParse(req.query);
+  if (!validatedQuery.success) {
+    res.status(400).json({
+      error: "Invalid query parameters",
+      details: validatedQuery.error.errors,
+    });
+    return;
+  }
+  const { page = 1, search } = validatedQuery.data;
+  const limit = 10;
+  const offset = (page - 1) * limit;
+  try {
+    const birds = await prisma.bird.findMany({
+      where: {
+        status: {
+          not: "ACTIVE" as const,
+        },
+      },
+      select: {
+        id: true,
+        bandNumber: true,
+        loft: {
+          select: {
+            name: true,
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        name: true,
+
+        color: true,
+        status: true,
+      },
+      skip: offset,
+      take: limit,
+    });
+    const totalBirds = await prisma.bird.count({
+      where: {
+        status: {
+          not: "ACTIVE" as const,
+        },
+      },
+    });
+    const totalPages = Math.ceil(totalBirds / limit);
+    res.status(200).json({
+      message: "Hospitality birds fetched successfully",
+      data: birds,
+      pagination: {
+        page,
+        limit,
+        total: totalBirds,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching hospitality birds:", error);
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+
 export {
   getDashboardData,
   getUsers,
@@ -1442,4 +1521,5 @@ export {
   getRaceStatistics,
   getRaceStatisticsById,
   deleteRace,
+  getHospitality,
 };

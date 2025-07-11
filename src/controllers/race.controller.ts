@@ -286,9 +286,9 @@ const createRaceOrder = async (req: Request, res: Response) => {
 
 const capturePayPalPayment = async (req: Request, res: Response) => {
   try {
-    const { orderId } = req.params;
+    const { orderID } = req.body;
 
-    if (!orderId) {
+    if (!orderID) {
       res.status(400).json({ error: "Order ID is required" });
       return;
     }
@@ -301,7 +301,7 @@ const capturePayPalPayment = async (req: Request, res: Response) => {
 
     // Capture the payment
     const captureResponse = await got.post(
-      `${process.env.PAYPAL_API_BASE}/v2/checkout/orders/${orderId}/capture`,
+      `${process.env.PAYPAL_API_BASE}/v2/checkout/orders/${orderID}/capture`,
       {
         headers: {
           "Content-Type": "application/json",
@@ -315,7 +315,7 @@ const capturePayPalPayment = async (req: Request, res: Response) => {
     if (captureData.status === "COMPLETED") {
       // Update payment status
       const payment = await prisma.payment.findUnique({
-        where: { paypalTransactionId: orderId },
+        where: { paypalTransactionId: orderID },
         include: { raceEntries: true },
       });
 
@@ -342,7 +342,7 @@ const capturePayPalPayment = async (req: Request, res: Response) => {
       res.status(200).json({
         message: "Payment captured successfully",
         data: {
-          orderId,
+          orderID,
           paymentId: payment.id,
           status: "SUCCESS",
           entriesUpdated: payment.raceEntries.length,
@@ -351,14 +351,14 @@ const capturePayPalPayment = async (req: Request, res: Response) => {
     } else {
       // Payment failed, update status
       await prisma.payment.update({
-        where: { paypalTransactionId: orderId },
+        where: { paypalTransactionId: orderID },
         data: { status: "FAILED" },
       });
 
       // Update race entries status to CANCELLED
       await prisma.raceEntry.updateMany({
         where: {
-          payment: { paypalTransactionId: orderId },
+          payment: { paypalTransactionId: orderID },
         },
         data: { status: "CANCELLED" },
       });

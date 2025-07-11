@@ -94,10 +94,23 @@ const getMyLofts = async (req: Request, res: Response) => {
     });
     return;
   }
+  const validatedQuery = getQueryParams.safeParse(req.query);
+  if (!validatedQuery.success) {
+    res.status(400).json({
+      message: "Invalid query parameters.",
+      error: validatedQuery.error.errors,
+    });
+    return;
+  }
+  const { search } = validatedQuery.data;
   try {
     const lofts = await prisma.loft.findMany({
       where: {
         userId: req.user.id,
+        name: {
+          contains: search || "",
+          mode: "insensitive", // Case-insensitive search
+        },
       },
       select: {
         id: true,
@@ -208,6 +221,13 @@ const getSharedLofts = async (req: Request, res: Response) => {
         sharedWith: {
           some: {
             userId: req.user.id,
+          },
+        },
+      },
+      include: {
+        user: {
+          select: {
+            name: true,
           },
         },
       },
@@ -557,7 +577,7 @@ const createBird = async (req: Request, res: Response) => {
       acl: "public-read",
     });
 
-    const url = `${process.env.CLOUDFLARE_PUBLIC_URL}/${key}`;
+    const url = `${process.env.S3_PUBLIC_URL}/${key}`;
     bird = await prisma.bird.update({
       where: {
         id: bird.id,
@@ -663,10 +683,8 @@ const updateBird = async (req: Request, res: Response) => {
     });
     return;
   }
-  console.log(req.body);
   const validatedBody = updateBirdBody.safeParse(req.body);
   if (!validatedBody.success) {
-    // console.log(req.body)
     res.status(400).json({
       message: "Invalid bird data.",
       error: validatedBody.error.errors,
@@ -954,6 +972,64 @@ const getLoftInvitations = async (req: Request, res: Response) => {
   }
 };
 
+const getBirdsByLoftId = async (req: Request, res: Response) => {
+  if (!req.user || !req.session) {
+    res.status(401).json({
+      message: "Unauthorized access. Please log in.",
+    });
+    return;
+  }
+  const validatedParams = getIdParams.safeParse(req.params);
+  if (!validatedParams.success) {
+    res.status(400).json({
+      message: "Invalid loft ID.",
+      error: validatedParams.error.errors,
+    });
+    return;
+  }
+  const validatedQuery = getQueryParams.safeParse(req.query);
+  if (!validatedQuery.success) {
+    res.status(400).json({
+      message: "Invalid query parameters.",
+      error: validatedQuery.error.errors,
+    });
+    return;
+  }
+  try {
+    const { id } = validatedParams.data;
+    const { search } = validatedQuery.data;
+    const birds = await prisma.bird.findMany({
+      where: {
+        loftId: id,
+        name: {
+          contains: search || "",
+          mode: "insensitive", // Case-insensitive search
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        bandNumber: true,
+        breed: true,
+        rfIdTag: true,
+        penNumber: true,
+        age: true,
+      },
+    });
+    res.status(200).json({
+      message: "Birds retrieved successfully.",
+      data: birds,
+    });
+  } catch (error) {
+    console.error("Error retrieving birds by loft ID:", error);
+    res.status(500).json({
+      message: "An error occurred while retrieving birds.",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
 export {
   getMyDashboard,
   getMyLofts,
@@ -971,4 +1047,5 @@ export {
   rejectLoftInvitation,
   getLoftInvitations,
   listUsersByEmail,
+  getBirdsByLoftId,
 };

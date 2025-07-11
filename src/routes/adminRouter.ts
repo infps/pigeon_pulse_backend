@@ -18,6 +18,7 @@ import {
   getWinsByUser,
   updateRace,
   updateUserStatus,
+  getHospitality
 } from "../controllers/admin.controller";
 import upload from "../lib/multer";
 
@@ -50,3 +51,4 @@ adminRouter.get("/dashboard", adminMiddleware, getDashboardData);
 adminRouter.get("/payments", adminMiddleware, getAllPayments);
 adminRouter.get("/race-stats", adminMiddleware, getRaceStatistics);
 adminRouter.get("/race-stats/:id", adminMiddleware, getRaceStatisticsById);
+adminRouter.get("/hospitality", adminMiddleware, getHospitality);

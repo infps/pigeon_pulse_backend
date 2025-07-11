@@ -20,6 +20,15 @@ app.use(
 app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(
+    `[${timestamp}] ${req.method} ${req.originalUrl} - IP: ${req.ip}`
+  );
+  next();
+});
+
 app.get("/", (req, res) => {
   res.send("Welcome to the API");
 });
