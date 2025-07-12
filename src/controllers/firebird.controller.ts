@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { options } from "../lib/firebirdConfig";
+import { options } from "../lib/firebird";
 const Firebird = require("node-firebird");
 export const fetchFirebirdData = async (req: Request, res: Response) => {
   Firebird.attach(options, (err:any, db:any) => {
