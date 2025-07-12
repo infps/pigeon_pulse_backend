@@ -3,7 +3,7 @@
   "module": "src/index.ts",
   "type": "module",
   "scripts": {
-    "start":"bunx prisma migrate deploy && bun run ./src/index.ts",
+    "start": "bunx prisma migrate deploy && bun run ./src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "bun --watch run ./src/index.ts"
   },
@@ -24,6 +24,7 @@
     "express": "^5.1.0",
     "got": "^14.4.7",
     "multer": "^2.0.1",
+    "node-firebird": "^1.1.9",
     "zod": "^3.25.67"
   }
 }
