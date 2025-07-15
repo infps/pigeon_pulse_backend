@@ -5,7 +5,7 @@
   "scripts": {
     "start": "bunx prisma migrate deploy && bun run ./src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun --watch run ./src/index.ts"
+    "dev": "bunx prisma generate && bun --watch run ./src/index.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",

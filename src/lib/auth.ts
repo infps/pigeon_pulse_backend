@@ -54,4 +54,29 @@ export const auth = betterAuth({
       };
     }),
   ],
+  advanced: {
+    cookies: {
+      session_token: {
+        name: "session_token",
+        attributes: ((req: any) => {
+          const hostname = req?.hostname || "";
+
+          let domain = "";
+          if (hostname.includes("admin.infps-demo.com")) {
+            domain = "admin.infps-demo.com";
+          } else if (hostname.includes("infps-demo.com")) {
+            domain = "infps-demo.com";
+          }
+
+          return {
+            domain,
+            secure: true,
+            httpOnly: true,
+            sameSite: "Lax",
+            path: "/",
+          };
+        }) as any
+      },
+    },
+  },
 });
