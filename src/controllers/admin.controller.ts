@@ -6,6 +6,7 @@ import {
   updateRaceBody,
   updateUserBody,
   getQueryParams,
+  getRaceQueryParams,
 } from "../schema/zodSchema";
 import s3Client from "../lib/s3client";
 
@@ -123,7 +124,6 @@ const getUsers = async (req: Request, res: Response) => {
     ]);
 
     const totalPages = Math.ceil(totalUsers / limit);
-
     res.status(200).json({
       message: "Users fetched successfully",
       data: users,
@@ -784,7 +784,7 @@ const getRaces = async (req: Request, res: Response) => {
     return;
   }
 
-  const validatedQuery = getQueryParams.safeParse(req.query);
+  const validatedQuery = getRaceQueryParams.safeParse(req.query);
   if (!validatedQuery.success) {
     res.status(400).json({
       error: "Invalid query parameters",
@@ -793,23 +793,21 @@ const getRaces = async (req: Request, res: Response) => {
     return;
   }
 
-  const { page = 1, search } = validatedQuery.data;
+  const { page = 1, search, status } = validatedQuery.data;
   const limit = 10;
   const offset = (page - 1) * limit;
 
   try {
-    const whereClause = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: "insensitive" as const } },
-            {
-              startLocation: { contains: search, mode: "insensitive" as const },
-            },
-            { endLocation: { contains: search, mode: "insensitive" as const } },
-          ],
-        }
-      : {};
-
+    const whereClause: any = {
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: "insensitive" as const } },
+          { startLocation: { contains: search, mode: "insensitive" as const } },
+          { endLocation: { contains: search, mode: "insensitive" as const } },
+        ],
+      }),
+      ...(status && { status }),
+    };
     const [races, totalRaces] = await prisma.$transaction([
       prisma.race.findMany({
         where: whereClause,
