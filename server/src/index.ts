@@ -1,6 +1,7 @@
 import express, { type Request, type Response } from "express";
 import cors from "cors";
 import { env } from "./env";
+import type { ReqUser } from "./types/types";
 
 const app = express();
 const PORT = env.PORT || 4000;
@@ -22,3 +23,11 @@ app.get("/", (req: Request, res: Response) => {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: ReqUser;
+    }
+  }
+}
