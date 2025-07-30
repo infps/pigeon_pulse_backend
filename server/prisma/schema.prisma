@@ -1,0 +1,129 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BREEDER
+  ADMIN
+  SUPER_ADMIN
+}
+
+model User {
+  id               String     @id @default(uuid())
+  email            String     @unique
+  name             String?
+  role             Role       @default(BREEDER)
+  password         String
+  country          String?
+  ssn              String?
+  taxNumber        String?
+  address          String?
+  city             String?
+  state            String?
+  zip              String?
+  primaryPhone     String?
+  cellPhone        String?
+  fax              String?
+  sms              String?
+  alternativeEmail String?
+  webAddress       String?
+  status           UserStatus @default(ACTIVE)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  PROSPECT
+}
+
+model FeeSchema {
+  id                 String  @id @default(uuid())
+  name               String
+  entryFee           Float
+  expensePercentage  Float
+  minEntryFee        Int
+  entryFeeRefundable Boolean @default(false)
+  hs1Fee             Float
+  hs2Fee             Float
+  hs3Fee             Float
+  finalRaceFee       Float
+  maxBirds           Int
+  maxBackupBirds     Int
+  floatingBackup     Boolean @default(false)
+  Event              Event[]
+}
+
+model PrizeSchema {
+  id              String              @id @default(uuid())
+  name            String
+  distributions   PrizeDistribution[]
+  finalRaceEvents Event[]             @relation("FinalRacePrize")
+  hotspot1Events  Event[]             @relation("Hotspot1Prize")
+  hotspot2Events  Event[]             @relation("Hotspot2Prize")
+  hotspot3Events  Event[]             @relation("Hotspot3Prize")
+  avgWinnerEvents Event[]             @relation("AvgWinnerPrize")
+}
+
+model PrizeDistribution {
+  id            String      @id @default(uuid())
+  prizeSchema   PrizeSchema @relation(fields: [prizeSchemaId], references: [id], onDelete: Cascade)
+  prizeSchemaId String
+  fromPosition  Int
+  toPosition    Int
+  percentage    Float
+}
+
+model Event {
+  id             String      @id @default(uuid())
+  status         EventStatus @default(OPEN)
+  name           String
+  shortName      String
+  date           DateTime
+  type           EventType
+  trainingCount  Int
+  inventoryCount Int
+  finalRaceCount Int
+  hotspotCount   Int
+
+  feeSchema   FeeSchema? @relation(fields: [feeSchemaId], references: [id], onDelete: SetNull)
+  feeSchemaId String?
+
+  finalRacePrizeSchema   PrizeSchema? @relation("FinalRacePrize", fields: [finalRacePrizeSchemaId], references: [id], onDelete: SetNull)
+  finalRacePrizeSchemaId String?
+
+  hotspot1PrizeSchema   PrizeSchema? @relation("Hotspot1Prize", fields: [hotspot1PrizeSchemaId], references: [id], onDelete: SetNull)
+  hotspot1PrizeSchemaId String?
+
+  hotspot2PrizeSchema   PrizeSchema? @relation("Hotspot2Prize", fields: [hotspot2PrizeSchemaId], references: [id], onDelete: SetNull)
+  hotspot2PrizeSchemaId String?
+
+  hotspot3PrizeSchema   PrizeSchema? @relation("Hotspot3Prize", fields: [hotspot3PrizeSchemaId], references: [id], onDelete: SetNull)
+  hotspot3PrizeSchemaId String?
+
+  avgWinnerPrizeSchema   PrizeSchema? @relation("AvgWinnerPrize", fields: [avgWinnerPrizeSchemaId], references: [id], onDelete: SetNull)
+  avgWinnerPrizeSchemaId String?
+}
+
+enum EventType {
+  AGN
+  AS
+}
+
+enum EventStatus {
+  OPEN
+  CLOSED
+}
