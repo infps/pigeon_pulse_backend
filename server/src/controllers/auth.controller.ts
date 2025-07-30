@@ -32,7 +32,7 @@ const breedersignup = async (req: Request, res: Response) => {
         password: true,
       },
     });
-    const token = generateJWTToken(user.id, user.role);
+    const token = generateJWTToken({ userId: user.id, role: user.role });
     setCookie(res, token, env.BREEDER_DOMAIN);
     sendSuccess(res, user, "User created successfully", STATUS.CREATED);
   } catch (error) {
@@ -48,7 +48,7 @@ const breederlogin = async (req: Request, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
       where: { email: validatedData.email },
-      select: { id: true, password: true, role: true },
+      select: { id: true, password: true, role: true, status: true },
     });
     if (!user || user.role !== "BREEDER") {
       sendError(res, "Invalid Email or Password", {}, STATUS.NOT_FOUND);
@@ -62,7 +62,11 @@ const breederlogin = async (req: Request, res: Response) => {
       sendError(res, "Invalid Email or Password", {}, STATUS.UNAUTHORIZED);
       return;
     }
-    const token = generateJWTToken(user.id, user.role);
+    if (user.status !== "ACTIVE") {
+      sendError(res, "Your account is not active", {}, STATUS.FORBIDDEN);
+      return;
+    }
+    const token = generateJWTToken({ userId: user.id, role: user.role });
     setCookie(res, token, env.BREEDER_DOMAIN);
     const { password, ...userData } = user;
     sendSuccess(res, userData, "Login successful", STATUS.OK);
@@ -95,7 +99,7 @@ const adminSignup = async (req: Request, res: Response) => {
         password: true,
       },
     });
-    const token = generateJWTToken(user.id, user.role);
+    const token = generateJWTToken({ userId: user.id, role: user.role });
     setCookie(res, token, env.ADMIN_DOMAIN);
     sendSuccess(res, user, "User created successfully", STATUS.CREATED);
   } catch (error) {
@@ -125,7 +129,7 @@ const adminLogin = async (req: Request, res: Response) => {
       sendError(res, "Invalid Email or Password", {}, STATUS.UNAUTHORIZED);
       return;
     }
-    const token = generateJWTToken(user.id, user.role);
+    const token = generateJWTToken({ userId: user.id, role: user.role });
     setCookie(res, token, env.ADMIN_DOMAIN);
     const { password, ...userData } = user;
     sendSuccess(res, userData, "Login successful", STATUS.OK);
@@ -154,7 +158,6 @@ const adminLogout = async (req: Request, res: Response) => {
     sendError(res, "Internal server error", {}, STATUS.INTERNAL_SERVER_ERROR);
   }
 };
-
 
 export {
   breedersignup,

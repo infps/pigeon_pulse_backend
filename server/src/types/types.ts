@@ -8,6 +8,7 @@ type ReqUser = {
   name: string | null;
   email: string;
   role: string;
+  status: "ACTIVE" | "INACTIVE" | "PROSPECT";
 };
 
 export type { JWTPayload, ReqUser };

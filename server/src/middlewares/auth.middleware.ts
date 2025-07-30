@@ -19,9 +19,13 @@ export const requireRole = (allowedRoles: string[]) => {
       }
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
-        select: { id: true, role: true, email: true, name: true },
+        select: { id: true, role: true, email: true, name: true, status: true },
       });
-      if (!user) {
+      if (
+        !user ||
+        !allowedRoles.includes(user.role) ||
+        user.status !== "ACTIVE"
+      ) {
         return sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
       }
       req.user = user;
