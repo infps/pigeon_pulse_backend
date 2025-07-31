@@ -1,14 +1,16 @@
 type JWTPayload = {
   userId: string;
-  role: string;
+  role: Role;
 };
 
 type ReqUser = {
   id: string;
   name: string | null;
   email: string;
-  role: string;
+  role: Role;
   status: "ACTIVE" | "INACTIVE" | "PROSPECT";
 };
 
-export type { JWTPayload, ReqUser };
+type Role = "ADMIN" | "SUPER_ADMIN" | "BREEDER";
+
+export type { JWTPayload, ReqUser, Role };

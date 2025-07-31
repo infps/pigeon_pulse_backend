@@ -3,9 +3,9 @@ import { sendError } from "../types/api-response";
 import { STATUS } from "../utils/statusCodes";
 import { verifyToken } from "../utils/jwtToken";
 import { prisma } from "../lib/prisma";
-import type { JWTPayload } from "../types/types";
+import type { JWTPayload, Role } from "../types/types";
 
-export const requireRole = (allowedRoles: string[]) => {
+export const requireRole = (allowedRoles: Role[]) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     const token =
       req.headers.authorization?.split(" ")[1] || req.cookies.accessToken;

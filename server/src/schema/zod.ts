@@ -53,10 +53,51 @@ const idParamsSchema = z.object({
   id: z.string().uuid("Invalid ID format"),
 });
 
+const createEventSchemaBody = z.object({
+  name: z.string().min(1, "Event name is required"),
+  status: z.enum(["OPEN", "CLOSED"]),
+  shortName: z.string().min(1, "Short name is required"),
+  date: z.coerce.date(),
+  type: z.enum(["AGN", "AS"]),
+  trainingCount: z
+    .number()
+    .int()
+    .min(0, "Training count must be a non-negative integer"),
+  inventoryCount: z
+    .number()
+    .int()
+    .min(0, "Inventory count must be a non-negative integer"),
+  finalRaceCount: z
+    .number()
+    .int()
+    .min(0, "Final race count must be a non-negative integer"),
+  hotspotCount: z
+    .number()
+    .int()
+    .min(0, "Hotspot count must be a non-negative integer"),
+  feeSchemaId: z.uuid("Invalid fee schema ID format"),
+  finalRacePrizeSchemaId: z.uuid("Invalid prize schema ID format"),
+  hotspot1PrizeSchemaId: z.uuid("Invalid prize schema ID format"),
+  hotspot2PrizeSchemaId: z.uuid("Invalid prize schema ID format"),
+  hotspot3PrizeSchemaId: z.uuid("Invalid prize schema ID format"),
+  avgWinnerPrizeSchemaId: z.uuid("Invalid prize schema ID format"),
+});
+
+const paginationSchema = z.object({
+  page: z.number().int().min(1, "Page must be a positive integer").default(1),
+  limit: z
+    .number()
+    .int()
+    .min(1, "Limit must be a positive integer")
+    .default(10),
+});
+
 export {
   userSignupSchema,
   userLoginSchema,
   feeSchemaCreate,
   idParamsSchema,
   createPrizeSchemaBody,
+  createEventSchemaBody,
+  paginationSchema,
 };

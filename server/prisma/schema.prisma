@@ -45,6 +45,7 @@ model User {
 
   feeSchemasCreated   FeeSchema[]
   prizeSchemasCreated PrizeSchema[]
+  events              Event[]
 }
 
 enum UserStatus {
@@ -107,6 +108,12 @@ model Event {
   inventoryCount Int
   finalRaceCount Int
   hotspotCount   Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  creator   User   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  creatorId String
 
   feeSchema   FeeSchema? @relation(fields: [feeSchemaId], references: [id], onDelete: SetNull)
   feeSchemaId String?
