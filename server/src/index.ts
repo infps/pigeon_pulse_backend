@@ -1,10 +1,13 @@
-import express, { type Request, type Response } from "express";
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
 import cors from "cors";
 import { env } from "./env";
 import type { ReqUser } from "./types/types";
-import authRouter from "./routers/auth.router";
 import apiRouter from "./routers/api.router";
-
+import cookieParser from "cookie-parser";
 const app = express();
 const PORT = env.PORT || 4000;
 
@@ -14,9 +17,18 @@ app.use(
     credentials: true,
   })
 );
-
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof SyntaxError && "body" in err) {
+    return res.status(400).json({
+      message: "Invalid JSON format",
+      details: err.message,
+    });
+  }
+  next(err);
+});
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Hello World");

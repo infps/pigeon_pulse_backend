@@ -26,6 +26,7 @@ const breedersignup = async (req: Request, res: Response) => {
       data: {
         email: validatedData.email,
         password: hashedPassword,
+        name: validatedData.name,
         role: "BREEDER",
       },
       omit: {
@@ -33,7 +34,7 @@ const breedersignup = async (req: Request, res: Response) => {
       },
     });
     const token = generateJWTToken({ userId: user.id, role: user.role });
-    setCookie(res, token, env.BREEDER_DOMAIN);
+    setCookie(res, token);
     sendSuccess(res, user, "User created successfully", STATUS.CREATED);
   } catch (error) {
     console.error("Error during signup:", error);
@@ -48,7 +49,14 @@ const breederlogin = async (req: Request, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
       where: { email: validatedData.email },
-      select: { id: true, password: true, role: true, status: true },
+      select: {
+        id: true,
+        password: true,
+        role: true,
+        status: true,
+        name: true,
+        email: true,
+      },
     });
     if (!user || user.role !== "BREEDER") {
       sendError(res, "Invalid Email or Password", {}, STATUS.NOT_FOUND);
@@ -67,7 +75,7 @@ const breederlogin = async (req: Request, res: Response) => {
       return;
     }
     const token = generateJWTToken({ userId: user.id, role: user.role });
-    setCookie(res, token, env.BREEDER_DOMAIN);
+    setCookie(res, token);
     const { password, ...userData } = user;
     sendSuccess(res, userData, "Login successful", STATUS.OK);
   } catch (error) {
@@ -93,6 +101,7 @@ const adminSignup = async (req: Request, res: Response) => {
       data: {
         email: validatedData.email,
         password: hashedPassword,
+        name: validatedData.name,
         role: "ADMIN",
       },
       omit: {
@@ -100,7 +109,7 @@ const adminSignup = async (req: Request, res: Response) => {
       },
     });
     const token = generateJWTToken({ userId: user.id, role: user.role });
-    setCookie(res, token, env.ADMIN_DOMAIN);
+    setCookie(res, token);
     sendSuccess(res, user, "User created successfully", STATUS.CREATED);
   } catch (error) {
     console.error("Error during signup:", error);
@@ -130,7 +139,7 @@ const adminLogin = async (req: Request, res: Response) => {
       return;
     }
     const token = generateJWTToken({ userId: user.id, role: user.role });
-    setCookie(res, token, env.ADMIN_DOMAIN);
+    setCookie(res, token);
     const { password, ...userData } = user;
     sendSuccess(res, userData, "Login successful", STATUS.OK);
   } catch (error) {
@@ -141,7 +150,7 @@ const adminLogin = async (req: Request, res: Response) => {
 
 const breederlogout = async (req: Request, res: Response) => {
   try {
-    setCookie(res, "", env.BREEDER_DOMAIN);
+    setCookie(res, "");
     sendSuccess(res, {}, "Logout successful", STATUS.OK);
   } catch (error) {
     console.error("Error during logout:", error);
@@ -151,7 +160,7 @@ const breederlogout = async (req: Request, res: Response) => {
 
 const adminLogout = async (req: Request, res: Response) => {
   try {
-    setCookie(res, "", env.ADMIN_DOMAIN);
+    setCookie(res, "");
     sendSuccess(res, {}, "Logout successful", STATUS.OK);
   } catch (error) {
     console.error("Error during logout:", error);
@@ -159,7 +168,35 @@ const adminLogout = async (req: Request, res: Response) => {
   }
 };
 
+const getSession = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+      },
+    });
+    if (!user) {
+      sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+      return;
+    }
+    sendSuccess(res, user, "Session retrieved successfully", STATUS.OK);
+  } catch (error) {
+    console.error("Error retrieving session:", error);
+    sendError(res, "Internal server error", {}, STATUS.INTERNAL_SERVER_ERROR);
+  }
+};
+
 export {
+  getSession,
   breedersignup,
   breederlogin,
   adminSignup,

@@ -15,8 +15,8 @@ import { requireRole } from "../middlewares/auth.middleware";
 
 const schemaRouter = Router();
 
-schemaRouter.get("/prizes", getPrizeSchemas);
-schemaRouter.get("/prizes/:id", getPrizeSchema);
+schemaRouter.get("/prizes", requireRole(["ADMIN"]), getPrizeSchemas);
+schemaRouter.get("/prizes/:id", requireRole(["ADMIN"]), getPrizeSchema);
 schemaRouter.post(
   "/prizes",
   requireRole(["SUPER_ADMIN", "ADMIN"]),
@@ -33,8 +33,8 @@ schemaRouter.delete(
   deletePrizeSchema
 );
 
-schemaRouter.get("/fees", getFeeSchemas);
-schemaRouter.get("/fees/:id", getFeeSchema);
+schemaRouter.get("/fees", requireRole(["ADMIN"]), getFeeSchemas);
+schemaRouter.get("/fees/:id", requireRole(["ADMIN"]), getFeeSchema);
 schemaRouter.post(
   "/fees",
   requireRole(["SUPER_ADMIN", "ADMIN"]),

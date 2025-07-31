@@ -1,6 +1,10 @@
 import type { Response } from "express";
 import { env } from "../env";
-const setCookie = (res: Response, accessToken: string, domain: string) => {
+const setCookie = (
+  res: Response,
+  accessToken: string,
+  domain: string = "localhost"
+) => {
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
     secure: env.NODE_ENV === "production",

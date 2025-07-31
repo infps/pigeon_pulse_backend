@@ -18,35 +18,6 @@ const createEvent = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const feeSchemaIds = [validatedData.feeSchemaId];
-    const prizeSchemaIds = [
-      validatedData.finalRacePrizeSchemaId,
-      validatedData.hotspot1PrizeSchemaId,
-      validatedData.hotspot2PrizeSchemaId,
-      validatedData.hotspot3PrizeSchemaId,
-      validatedData.avgWinnerPrizeSchemaId,
-    ];
-
-    const [feeSchemas, prizeSchemas] = await Promise.all([
-      prisma.feeSchema.findMany({
-        where: { id: { in: feeSchemaIds } },
-        select: { id: true },
-      }),
-      prisma.prizeSchema.findMany({
-        where: { id: { in: prizeSchemaIds } },
-        select: { id: true },
-      }),
-    ]);
-
-    if (feeSchemaIds.length != feeSchemas.length) {
-      sendError(res, "Fee schema not found", {}, STATUS.BAD_REQUEST);
-      return;
-    }
-    if (prizeSchemaIds.length != prizeSchemas.length) {
-      sendError(res, "Prize schema not found", {}, STATUS.BAD_REQUEST);
-      return;
-    }
-
     const event = await prisma.event.create({
       data: {
         ...validatedData,
@@ -54,8 +25,12 @@ const createEvent = async (req: Request, res: Response) => {
       },
     });
     sendSuccess(res, event, "Event created successfully", STATUS.CREATED);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating event:", error);
+    if (error.code === "P2003") {
+      sendError(res, "Invalid data", {}, STATUS.BAD_REQUEST);
+      return;
+    }
     sendError(res, "Failed to create event", {}, STATUS.INTERNAL_SERVER_ERROR);
   }
 };
@@ -159,4 +134,65 @@ const listEventsByCreator = async (req: Request, res: Response) => {
   }
 };
 
-export { createEvent, updateEvent, listEvents, listEventsByCreator };
+const listEvent = async (req: Request, res: Response) => {
+  const validatedParams = validateSchema(req, res, "params", idParamsSchema);
+  if (!validatedParams) {
+    return;
+  }
+  try {
+    const event = await prisma.event.findUnique({
+      where: { id: validatedParams.id },
+      select: {
+        id: true,
+        status: true,
+        name: true,
+        shortName: true,
+        date: true,
+        type: true,
+        trainingCount: true,
+        inventoryCount: true,
+        finalRaceCount: true,
+        hotspotCount: true,
+        createdAt: true,
+        updatedAt: true,
+        creator: {
+          select: { id: true, name: true, email: true },
+        },
+        feeSchema: {
+          select: { id: true, name: true },
+        },
+        avgWinnerPrizeSchema: {
+          select: { id: true, name: true },
+        },
+        finalRacePrizeSchema: {
+          select: { id: true, name: true },
+        },
+        hotspot1PrizeSchema: {
+          select: { id: true, name: true },
+        },
+        hotspot2PrizeSchema: {
+          select: { id: true, name: true },
+        },
+        hotspot3PrizeSchema: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    if (!event) {
+      sendError(res, "Event not found", {}, STATUS.NOT_FOUND);
+      return;
+    }
+    sendSuccess(res, event, "Event retrieved successfully", STATUS.OK);
+  } catch (error) {
+    console.error("Error retrieving event:", error);
+    sendError(
+      res,
+      "Failed to retrieve event",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+export { createEvent, updateEvent, listEvents, listEventsByCreator, listEvent };

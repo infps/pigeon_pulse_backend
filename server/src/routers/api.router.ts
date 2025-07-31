@@ -7,6 +7,6 @@ const apiRouter = Router();
 
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/schema", schemaRouter);
-apiRouter.use("/event", eventRouter);
+apiRouter.use("/events", eventRouter);
 
 export default apiRouter;
