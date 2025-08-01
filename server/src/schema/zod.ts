@@ -92,6 +92,23 @@ const paginationSchema = z.object({
     .default(10),
 });
 
+const updateUserSchema = z.object({
+  name: z.string("Name is required").optional(),
+  country: z.string("Country is required").optional(),
+  ssn: z.string("SSN is required").optional(),
+  taxNumber: z.string("Tax number is required").optional(),
+  address: z.string("Address is required").optional(),
+  city: z.string("City is required").optional(),
+  state: z.string("State is required").optional(),
+  zip: z.string("ZIP code is required").optional(),
+  primaryPhone: z.string("Primary phone is required").optional(),
+  cellPhone: z.string("Cell phone is required").optional(),
+  fax: z.string("Fax is required").optional(),
+  sms: z.string("SMS is required").optional(),
+  alternativeEmail: z.string("Alternative email is required").optional(),
+  webAddress: z.string("Web address is required").optional(),
+});
+
 export {
   userSignupSchema,
   userLoginSchema,
@@ -100,4 +117,5 @@ export {
   createPrizeSchemaBody,
   createEventSchemaBody,
   paginationSchema,
+  updateUserSchema,
 };

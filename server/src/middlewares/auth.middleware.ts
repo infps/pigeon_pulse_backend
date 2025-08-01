@@ -11,6 +11,7 @@ export const requireRole = (allowedRoles: Role[]) => {
       req.headers.authorization?.split(" ")[1] || req.cookies.accessToken;
     if (!token) {
       sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+      return;
     }
     try {
       const decoded: JWTPayload = verifyToken(token);

@@ -6,13 +6,17 @@ import {
   breederlogin,
   breederlogout,
   breedersignup,
+  getSession,
 } from "../controllers/auth.controller";
-import { getSession } from "better-auth/api";
 import { requireRole } from "../middlewares/auth.middleware";
 
 const authRouter = Router();
 
-authRouter.get("/session",requireRole(["BREEDER","ADMIN","SUPER_ADMIN"]), getSession);
+authRouter.get(
+  "/session",
+  requireRole(["BREEDER", "ADMIN", "SUPER_ADMIN"]),
+  getSession
+);
 authRouter.post("/breeder/signup", breedersignup);
 authRouter.post("/breeder/login", breederlogin);
 authRouter.post("/breeder/logout", breederlogout);

@@ -30,6 +30,12 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   next(err);
 });
 
+app.use((req, res, next) => {
+  //logging middleware
+  console.log(`${req.method} ${req.originalUrl}`);
+  next();
+});
+
 app.get("/", (req: Request, res: Response) => {
   res.send("Hello World");
 });

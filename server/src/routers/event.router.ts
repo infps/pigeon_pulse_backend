@@ -13,7 +13,7 @@ const eventRouter = Router();
 eventRouter.post("/", requireRole(["ADMIN"]), createEvent);
 eventRouter.put("/:id", requireRole(["ADMIN"]), updateEvent);
 eventRouter.get("/", listEvents);
-eventRouter.get("/:id", listEvent);
 eventRouter.get("/my", requireRole(["ADMIN"]), listEventsByCreator);
+eventRouter.get("/:id", listEvent);
 
 export default eventRouter;

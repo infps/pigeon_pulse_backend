@@ -142,41 +142,6 @@ const listEvent = async (req: Request, res: Response) => {
   try {
     const event = await prisma.event.findUnique({
       where: { id: validatedParams.id },
-      select: {
-        id: true,
-        status: true,
-        name: true,
-        shortName: true,
-        date: true,
-        type: true,
-        trainingCount: true,
-        inventoryCount: true,
-        finalRaceCount: true,
-        hotspotCount: true,
-        createdAt: true,
-        updatedAt: true,
-        creator: {
-          select: { id: true, name: true, email: true },
-        },
-        feeSchema: {
-          select: { id: true, name: true },
-        },
-        avgWinnerPrizeSchema: {
-          select: { id: true, name: true },
-        },
-        finalRacePrizeSchema: {
-          select: { id: true, name: true },
-        },
-        hotspot1PrizeSchema: {
-          select: { id: true, name: true },
-        },
-        hotspot2PrizeSchema: {
-          select: { id: true, name: true },
-        },
-        hotspot3PrizeSchema: {
-          select: { id: true, name: true },
-        },
-      },
     });
 
     if (!event) {

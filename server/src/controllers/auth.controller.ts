@@ -59,7 +59,7 @@ const breederlogin = async (req: Request, res: Response) => {
       },
     });
     if (!user || user.role !== "BREEDER") {
-      sendError(res, "Invalid Email or Password", {}, STATUS.NOT_FOUND);
+      sendError(res, "Invalid Email or Password", {}, STATUS.UNAUTHORIZED);
       return;
     }
     const isPasswordValid = await bcrypt.compare(
@@ -127,7 +127,7 @@ const adminLogin = async (req: Request, res: Response) => {
       select: { id: true, password: true, role: true },
     });
     if (!user || user.role !== "ADMIN") {
-      sendError(res, "Invalid Email or Password", {}, STATUS.NOT_FOUND);
+      sendError(res, "Invalid Email or Password", {}, STATUS.UNAUTHORIZED);
       return;
     }
     const isPasswordValid = await bcrypt.compare(
