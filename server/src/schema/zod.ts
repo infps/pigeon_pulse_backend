@@ -53,6 +53,10 @@ const idParamsSchema = z.object({
   id: z.uuid("Invalid ID format"),
 });
 
+const queryParamsSchema = z.object({
+  q: z.string().optional(),
+});
+
 const createEventSchemaBody = z.object({
   name: z.string().min(1, "Event name is required"),
   status: z.enum(["OPEN", "CLOSED"]),
@@ -140,11 +144,7 @@ const addBirdSchema = z.object({
 
 const createOrderSchema = z.object({
   eventId: z.uuid("Invalid event ID format"),
-  birds: z.array(
-    z.object({
-      birdId: z.uuid("Invalid bird ID format"),
-    })
-  ),
+  birds: z.array(z.string().min(1, "Bird ID is required")),
 });
 
 const paypalPaymentSchema = z.object({
@@ -165,4 +165,5 @@ export {
   eventsQuerySchema,
   createOrderSchema,
   paypalPaymentSchema,
+  queryParamsSchema,
 };

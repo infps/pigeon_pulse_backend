@@ -67,4 +67,37 @@ const updateProfile = async (req: Request, res: Response) => {
   }
 };
 
-export { getProfile, updateProfile };
+const getBreedersByEvent = async (req: Request, res: Response) => {
+  if (!req.user || req.user.role !== "ADMIN") {
+    sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const { eventId } = req.params;
+  try {
+    const breeders = await prisma.user.findMany({
+      where: {
+        breederEvents: {
+          some: {
+            eventId: eventId,
+          },
+        },
+      },
+      select: {
+        name: true,
+        id: true,
+        email: true,
+      },
+    });
+    sendSuccess(res, breeders, "Breeders retrieved successfully", STATUS.OK);
+  } catch (error) {
+    console.error("Error retrieving breeders by event:", error);
+    sendError(
+      res,
+      "Failed to retrieve breeders by event",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+export { getProfile, updateProfile, getBreedersByEvent };

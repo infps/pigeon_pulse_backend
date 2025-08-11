@@ -1,7 +1,11 @@
 import type { Request, Response } from "express";
 import { STATUS } from "../utils/statusCodes";
 import { sendError, sendSuccess } from "../types/api-response";
-import { createOrderSchema } from "../schema/zod";
+import {
+  createOrderSchema,
+  idParamsSchema,
+  queryParamsSchema,
+} from "../schema/zod";
 import validateSchema from "../utils/validators";
 import { prisma } from "../lib/prisma";
 import { getAccessToken } from "../lib/paypalAccessToken";
@@ -42,7 +46,7 @@ const createEventInventory = async (req: Request, res: Response) => {
     const birds = await prisma.bird.findMany({
       where: {
         id: {
-          in: validatedData.birds.map((bird) => bird.birdId),
+          in: validatedData.birds,
         },
         breederId: breeder.id,
       },
@@ -87,19 +91,19 @@ const createEventInventory = async (req: Request, res: Response) => {
             },
           ],
           application_context: {
-            return_url: `${process.env.FRONTEND_URL}/payment/success`,
-            cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
+            return_url: `${process.env.BREEDER_DOMAIN}/payment/success`,
+            cancel_url: `${process.env.BREEDER_DOMAIN}/payment/cancel`,
           },
         },
       }
     );
-
+    console.log("Paypal Order Response:", paypalOrder.body);
     const orderData = JSON.parse(paypalOrder.body);
     await prisma.$transaction(async (tx) => {
       await tx.eventInventoryItem.createMany({
         data: validatedData.birds.map((bird) => ({
           eventId: validatedData.eventId,
-          birdId: bird.birdId,
+          birdId: bird,
         })),
       });
 
@@ -140,4 +144,108 @@ const createEventInventory = async (req: Request, res: Response) => {
   }
 };
 
-export { createEventInventory };
+const getMYEvents = async (req: Request, res: Response) => {
+  if (!req.user || req.user.role !== "BREEDER") {
+    sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  try {
+    const breederId = req.user.id;
+    const events = await prisma.eventInventory.findMany({
+      where: {
+        breederId: breederId,
+      },
+      select: {
+        event: {
+          select: {
+            id: true,
+            name: true,
+            date: true,
+          },
+        },
+        reserved_birds: true,
+        loft: true,
+        payment: {
+          select: {
+            status: true,
+            paymentValue: true,
+            transactionId: true,
+          },
+        },
+      },
+    });
+    sendSuccess(res, events, "My events retrieved successfully", STATUS.OK);
+  } catch (error) {
+    console.error("Error retrieving my events:", error);
+    sendError(
+      res,
+      "Failed to retrieve my events",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+const listEventInventory = async (req: Request, res: Response) => {
+  if (!req.user || req.user.role !== "ADMIN") {
+    sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+  const query = validateSchema(req, res, "query", queryParamsSchema);
+  if (!query) return;
+  try {
+    const queryConditions: any = {};
+    if (query.q) {
+      queryConditions.OR = [
+        { breeder: { name: { contains: query.q, mode: "insensitive" } } },
+        { breeder: { email: { contains: query.q, mode: "insensitive" } } },
+      ];
+    }
+    queryConditions.eventId = params.id;
+    queryConditions.event = {
+      creatorId: req.user.id,
+    };
+    const inventories = await prisma.eventInventory.findMany({
+      where: {
+        ...queryConditions,
+      },
+      select: {
+        id: true,
+        registration_date: true,
+        reserved_birds: true,
+        isPaid: true,
+        loft: true,
+        breeder: {
+          select: {
+            id: true,
+            name: true,
+            state: true,
+          },
+        },
+        payment: {
+          select: {
+            paymentValue: true,
+          },
+        },
+      },
+    });
+    sendSuccess(
+      res,
+      inventories,
+      "Event inventories retrieved successfully",
+      STATUS.OK
+    );
+  } catch (error) {
+    console.error("Error retrieving event inventories:", error);
+    sendError(
+      res,
+      "Failed to retrieve event inventories",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+export { createEventInventory, getMYEvents, listEventInventory };

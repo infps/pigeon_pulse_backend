@@ -88,4 +88,38 @@ const addBird = async (req: Request, res: Response) => {
   }
 };
 
-export { getMyBirds, updateBird, addBird };
+const getBirdsPerEvent = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+
+  try {
+    const birds = await prisma.bird.findMany({
+      where: {
+        eventInventoryItems: {
+          some: {
+            eventId: params.id,
+          },
+        },
+      },
+      include: {
+        eventInventoryItems: true,
+      },
+    });
+    sendSuccess(res, birds, "Birds fetched successfully", STATUS.OK);
+    return;
+  } catch (error) {
+    console.error("Error fetching birds for event:", error);
+    sendError(
+      res,
+      "Failed to fetch birds for event",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+export { getMyBirds, updateBird, addBird, getBirdsPerEvent };
