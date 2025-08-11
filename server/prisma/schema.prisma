@@ -42,11 +42,6 @@ enum RACETYPE {
   AVG_WINNER
 }
 
-enum BirdSex {
-  COCK
-  HEN
-}
-
 model User {
   id               String     @id @default(uuid())
   email            String     @unique
@@ -69,6 +64,8 @@ model User {
   status           UserStatus @default(ACTIVE)
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
+
+  payments Payment[]
 
   breederEvents EventInventory[]
   birds         Bird[]
@@ -141,8 +138,8 @@ model Event {
   creator   User   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   creatorId String
 
-  feeSchema   FeeSchema? @relation(fields: [feeSchemaId], references: [id], onDelete: SetNull)
-  feeSchemaId String?
+  feeSchema   FeeSchema @relation(fields: [feeSchemaId], references: [id], onDelete: Restrict)
+  feeSchemaId String
 
   finalRacePrizeSchema   PrizeSchema? @relation("FinalRacePrize", fields: [finalRacePrizeSchemaId], references: [id], onDelete: SetNull)
   finalRacePrizeSchemaId String?
@@ -186,14 +183,14 @@ model EventInventoryItem {
   eventId     String
   bird        Bird      @relation(fields: [birdId], references: [id], onDelete: Cascade)
   birdId      String
-  rfId        String    @unique // Unique per event, used for scans
+  rfId        String?   @unique // Unique per event, used for scans
   arrivalDate DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   raceItems        RaceItem[] // Direct relation for faster lookups
-  EventInventory   EventInventory? @relation(fields: [eventInventoryId], references: [id])
+  EventInventory   EventInventory? @relation(fields: [eventInventoryId], references: [id], onDelete: Cascade)
   eventInventoryId String?
 
   @@index([rfId], map: "idx_rfId")
@@ -229,13 +226,18 @@ model Race {
   @@index([eventId, startTime])
 }
 
+enum BirdSex {
+  COCK
+  HEN
+}
+
 model Bird {
   id           String    @id @default(uuid())
-  band         String    @unique
-  band_1       String
-  band_2       String
-  band_3       String
-  band_4       String
+  band         String?   @unique
+  band_1       String?
+  band_2       String?
+  band_3       String?
+  band_4       String?
   birdName     String
   color        String
   is_active    Boolean   @default(true)
@@ -307,12 +309,15 @@ model RaceItemResult {
 }
 
 model Payment {
-  id            String   @id @default(uuid())
-  paymentDate   DateTime @default(now())
-  paymentValue  Float
-  paymentMethod String
-  paymentNote   String?
-
+  id               String         @id @default(uuid())
+  paymentDate      DateTime       @default(now())
+  paymentValue     Float
+  paymentMethod    String
+  paymentNote      String?
+  transactionId    String?        @unique
+  breeder          User           @relation(fields: [breederId], references: [id], onDelete: Cascade)
+  breederId        String
+  status           String         @default("PENDING")
   eventInventory   EventInventory @relation(fields: [eventInventoryId], references: [id], onDelete: Cascade)
   eventInventoryId String         @unique
 }

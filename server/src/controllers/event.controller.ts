@@ -4,6 +4,7 @@ import { STATUS } from "../utils/statusCodes";
 import validateSchema from "../utils/validators";
 import {
   createEventSchemaBody,
+  eventsQuerySchema,
   idParamsSchema,
   paginationSchema,
 } from "../schema/zod";
@@ -75,12 +76,25 @@ const updateEvent = async (req: Request, res: Response) => {
 };
 
 const listEvents = async (req: Request, res: Response) => {
-  const pagination = validateSchema(req, res, "query", paginationSchema);
+  const pagination = validateSchema(req, res, "query", eventsQuerySchema);
   if (!pagination) {
     return;
   }
   try {
     const events = await prisma.event.findMany({
+      where: { status: pagination.status || undefined },
+      select: {
+        id: true,
+        date: true,
+        name: true,
+        shortName: true,
+        status: true,
+        _count: {
+          select: {
+            EventInventoryItem: true,
+          },
+        },
+      },
       skip: (pagination.page - 1) * pagination.limit,
       take: pagination.limit,
       orderBy: { createdAt: "desc" },
@@ -142,8 +156,40 @@ const listEvent = async (req: Request, res: Response) => {
   try {
     const event = await prisma.event.findUnique({
       where: { id: validatedParams.id },
+      select: {
+        id: true,
+        name: true,
+        shortName: true,
+        date: true,
+        status: true,
+        _count: {
+          select: {
+            EventInventoryItem: true,
+          },
+        },
+        feeSchema: {
+          select: {
+            entryFee: true,
+            hs1Fee: true,
+            hs2Fee: true,
+            hs3Fee: true,
+            finalRaceFee: true,
+          },
+        },
+        finalRacePrizeSchema: {
+          select: {
+            distributions: {
+              select: {
+                fromPosition: true,
+                toPosition: true,
+                percentage: true,
+              },
+            },
+          },
+        },
+      },
     });
-
+    console.log("Event retrieved:", event);
     if (!event) {
       sendError(res, "Event not found", {}, STATUS.NOT_FOUND);
       return;
@@ -160,4 +206,65 @@ const listEvent = async (req: Request, res: Response) => {
   }
 };
 
-export { createEvent, updateEvent, listEvents, listEventsByCreator, listEvent };
+const getMoreEvents = async (req: Request, res: Response) => {
+  const pagination = validateSchema(req, res, "query", eventsQuerySchema);
+  if (!pagination) {
+    return;
+  }
+  const validatedParams = validateSchema(req, res, "params", idParamsSchema);
+  if (!validatedParams) {
+    return;
+  }
+  try {
+    const events = await prisma.event.findMany({
+      where: {
+        NOT: { id: validatedParams.id },
+        status: pagination.status || undefined,
+      },
+      select: {
+        id: true,
+        date: true,
+        name: true,
+        shortName: true,
+        status: true,
+        _count: {
+          select: {
+            EventInventoryItem: true,
+          },
+        },
+      },
+      skip: (pagination.page - 1) * pagination.limit,
+      take: pagination.limit,
+      orderBy: { createdAt: "desc" },
+    });
+    const totalCount = await prisma.event.count({
+      where: {
+        NOT: { id: validatedParams.id },
+        status: pagination.status || undefined,
+      },
+    });
+    sendSuccess(
+      res,
+      { events, totalCount },
+      "More events retrieved successfully",
+      STATUS.OK
+    );
+  } catch (error) {
+    console.error("Error retrieving more events:", error);
+    sendError(
+      res,
+      "Failed to retrieve more events",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+export {
+  createEvent,
+  updateEvent,
+  listEvents,
+  listEventsByCreator,
+  listEvent,
+  getMoreEvents,
+};

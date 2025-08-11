@@ -50,7 +50,7 @@ const createPrizeSchemaBody = z.object({
 });
 
 const idParamsSchema = z.object({
-  id: z.string().uuid("Invalid ID format"),
+  id: z.uuid("Invalid ID format"),
 });
 
 const createEventSchemaBody = z.object({
@@ -84,8 +84,12 @@ const createEventSchemaBody = z.object({
 });
 
 const paginationSchema = z.object({
-  page: z.number().int().min(1, "Page must be a positive integer").default(1),
-  limit: z
+  page: z.coerce
+    .number()
+    .int()
+    .min(1, "Page must be a positive integer")
+    .default(1),
+  limit: z.coerce
     .number()
     .int()
     .min(1, "Limit must be a positive integer")
@@ -93,20 +97,58 @@ const paginationSchema = z.object({
 });
 
 const updateUserSchema = z.object({
-  name: z.string("Name is required").optional(),
-  country: z.string("Country is required").optional(),
-  ssn: z.string("SSN is required").optional(),
-  taxNumber: z.string("Tax number is required").optional(),
-  address: z.string("Address is required").optional(),
-  city: z.string("City is required").optional(),
-  state: z.string("State is required").optional(),
-  zip: z.string("ZIP code is required").optional(),
-  primaryPhone: z.string("Primary phone is required").optional(),
-  cellPhone: z.string("Cell phone is required").optional(),
-  fax: z.string("Fax is required").optional(),
-  sms: z.string("SMS is required").optional(),
-  alternativeEmail: z.string("Alternative email is required").optional(),
-  webAddress: z.string("Web address is required").optional(),
+  name: z.string().min(1, "Name is required").optional(),
+  country: z.string().min(1, "Country is required").optional(),
+  ssn: z.string().min(1, "SSN is required").optional(),
+  taxNumber: z.string().min(1, "Tax number is required").optional(),
+  address: z.string().min(1, "Address is required").optional(),
+  city: z.string().min(1, "City is required").optional(),
+  state: z.string().min(1, "State is required").optional(),
+  zip: z.string().min(1, "ZIP code is required").optional(),
+  primaryPhone: z.string().min(1, "Primary phone is required").optional(),
+  cellPhone: z.string().min(1, "Cell phone is required").optional(),
+  fax: z.string().min(1, "Fax is required").optional(),
+  sms: z.string().min(1, "SMS is required").optional(),
+  alternativeEmail: z
+    .string()
+    .min(1, "Alternative email is required")
+    .optional(),
+  webAddress: z.string().min(1, "Web address is required").optional(),
+});
+
+const updateBirdSchema = z.object({
+  birdName: z.string().min(1, "Bird name is required").optional(),
+  color: z.string().min(1, "Color is required").optional(),
+  sex: z.enum(["COCK", "HEN"]).optional(),
+});
+
+const eventsQuerySchema = z.object({
+  page: z.number().int().min(1, "Page must be a positive integer").default(1),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1, "Limit must be a positive integer")
+    .default(10),
+  status: z.enum(["OPEN", "CLOSED"]).optional(),
+});
+
+const addBirdSchema = z.object({
+  birdName: z.string().min(1, "Bird name is required"),
+  color: z.string().min(1, "Color is required"),
+  sex: z.enum(["COCK", "HEN"]),
+});
+
+const createOrderSchema = z.object({
+  eventId: z.uuid("Invalid event ID format"),
+  birds: z.array(
+    z.object({
+      birdId: z.uuid("Invalid bird ID format"),
+    })
+  ),
+});
+
+const paypalPaymentSchema = z.object({
+  orderId: z.string().min(1, "Order ID is required"),
 });
 
 export {
@@ -118,4 +160,9 @@ export {
   createEventSchemaBody,
   paginationSchema,
   updateUserSchema,
+  updateBirdSchema,
+  addBirdSchema,
+  eventsQuerySchema,
+  createOrderSchema,
+  paypalPaymentSchema,
 };
