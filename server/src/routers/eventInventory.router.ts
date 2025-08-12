@@ -4,16 +4,18 @@ import {
   createEventInventory,
   getMYEvents,
   listEventInventory,
+  updateEventInventoryItem,
 } from "../controllers/eventInventory.controller";
 
 const eventInventoryRouter = Router();
 
 eventInventoryRouter.post("/", requireRole(["BREEDER"]), createEventInventory);
 eventInventoryRouter.get("/my-events", requireRole(["BREEDER"]), getMYEvents);
-eventInventoryRouter.get(
-  "/:id",
+eventInventoryRouter.get("/:id", requireRole(["ADMIN"]), listEventInventory);
+eventInventoryRouter.put(
+  "/item/:id",
   requireRole(["ADMIN"]),
-  listEventInventory
+  updateEventInventoryItem
 );
 
 export default eventInventoryRouter;

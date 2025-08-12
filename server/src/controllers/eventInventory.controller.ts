@@ -5,6 +5,7 @@ import {
   createOrderSchema,
   idParamsSchema,
   queryParamsSchema,
+  updateEventInventoryItemSchema,
 } from "../schema/zod";
 import validateSchema from "../utils/validators";
 import { prisma } from "../lib/prisma";
@@ -248,4 +249,75 @@ const listEventInventory = async (req: Request, res: Response) => {
   }
 };
 
-export { createEventInventory, getMYEvents, listEventInventory };
+const updateEventInventoryItem = async (req: Request, res: Response) => {
+  if (!req.user || req.user.role !== "ADMIN") {
+    sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+  const validatedData = validateSchema(
+    req,
+    res,
+    "body",
+    updateEventInventoryItemSchema
+  );
+  if (!validatedData) return;
+
+  try {
+    const eventInventoryItem = await prisma.eventInventoryItem.findUnique({
+      where: { id: params.id },
+      select: { id: true },
+    });
+    if (!eventInventoryItem) {
+      sendError(res, "Event inventory item not found", {}, STATUS.NOT_FOUND);
+      return;
+    }
+
+    const updatedItem = await prisma.eventInventoryItem.update({
+      where: { id: params.id },
+      data: {
+        arrivalDate: validatedData.arrivalDate,
+        departureDate: validatedData.departureDate,
+        rfId: validatedData.rfId,
+        band_1: validatedData.band_1,
+        band_2: validatedData.band_2,
+        band_3: validatedData.band_3,
+        band_4: validatedData.band_4,
+        band: `${validatedData.band_1}-${validatedData.band_2}-${validatedData.band_3}-${validatedData.band_4}`,
+        note: validatedData.note,
+        bird: {
+          update: {
+            sex: validatedData.sex,
+            color: validatedData.color,
+            birdName: validatedData.birdName,
+            is_lost: validatedData.is_lost,
+            lost_date: validatedData.lost_date,
+            is_active: validatedData.is_active,
+          },
+        },
+      },
+    });
+    sendSuccess(
+      res,
+      updatedItem,
+      "Event inventory item updated successfully",
+      STATUS.OK
+    );
+  } catch (error) {
+    console.error("Error updating event inventory item:", error);
+    sendError(
+      res,
+      "Failed to update event inventory item",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+export {
+  createEventInventory,
+  getMYEvents,
+  listEventInventory,
+  updateEventInventoryItem,
+};

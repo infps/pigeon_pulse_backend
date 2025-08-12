@@ -187,6 +187,14 @@ model EventInventoryItem {
   arrivalDate   DateTime?
   departureDate DateTime?
 
+  band   String? @unique
+  band_1 String?
+  band_2 String?
+  band_3 String?
+  band_4 String?
+
+  note String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -201,18 +209,15 @@ model Race {
   id                 String     @id @default(uuid())
   type               RACETYPE
   externalRaceId     String     @unique @map("RACE_ID")
-  raceNumber         Int        @map("RACE_NUMBER")
   event              Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
   eventId            String
   location           String
-  locationLat        Float
-  locationLng        Float
   distance           Int
   startTime          DateTime
-  endTime            DateTime
+  arrivalDate        DateTime
   isClosed           Boolean    @default(false)
-  sunrise            DateTime
-  sunset             DateTime
+  sunrise            DateTime?
+  sunset             DateTime?
   weather            String?
   wind               String?
   temperature        String?
@@ -234,18 +239,12 @@ enum BirdSex {
 
 model Bird {
   id           String    @id @default(uuid())
-  band         String?   @unique
-  band_1       String?
-  band_2       String?
-  band_3       String?
-  band_4       String?
   birdName     String
   color        String
   is_active    Boolean   @default(true)
   is_lost      Boolean   @default(false)
   lost_date    DateTime?
   lost_race_id String?
-  note         String?
   imageUrl     String?
   sex          BirdSex
 

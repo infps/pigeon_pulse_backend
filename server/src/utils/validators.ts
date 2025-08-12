@@ -2,6 +2,16 @@ import z from "zod";
 import type { Request, Response, NextFunction } from "express";
 import { sendError } from "../types/api-response";
 import { STATUS } from "./statusCodes";
+function stripEmptyStrings<T>(obj: T): T {
+  const copy: any = { ...obj };
+  for (const key in copy) {
+    if (typeof copy[key] === "string" && copy[key].trim() === "") {
+      delete copy[key]; // remove key instead of setting undefined
+    }
+  }
+  return copy;
+}
+
 const validateSchema = <T extends z.ZodTypeAny>(
   req: Request,
   res: Response,
@@ -22,6 +32,6 @@ const validateSchema = <T extends z.ZodTypeAny>(
     sendError(res, "Validation failed", errors, STATUS.BAD_REQUEST);
     return;
   }
-  return result.data;
+  return stripEmptyStrings(result.data);
 };
 export default validateSchema;

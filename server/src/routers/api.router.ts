@@ -6,6 +6,7 @@ import userRouter from "./users.router";
 import birdsRouter from "./birds.router";
 import paymentRouter from "./payment.router";
 import eventInventoryRouter from "./eventInventory.router";
+import raceRouter from "./race.router";
 
 const apiRouter = Router();
 
@@ -16,5 +17,6 @@ apiRouter.use("/users", userRouter);
 apiRouter.use("/birds", birdsRouter);
 apiRouter.use("/event-inventory", eventInventoryRouter);
 apiRouter.use("/payments", paymentRouter);
+apiRouter.use("/races", raceRouter);
 
 export default apiRouter;

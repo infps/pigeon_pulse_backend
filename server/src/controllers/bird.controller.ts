@@ -3,7 +3,12 @@ import { sendError, sendSuccess } from "../types/api-response";
 import { STATUS } from "../utils/statusCodes";
 import { prisma } from "../lib/prisma";
 import validateSchema from "../utils/validators";
-import { addBirdSchema, idParamsSchema, updateBirdSchema } from "../schema/zod";
+import {
+  addBirdSchema,
+  idParamsSchema,
+  listBirdQuery,
+  updateBirdSchema,
+} from "../schema/zod";
 const getMyBirds = async (req: Request, res: Response) => {
   if (!req.user || req.user.role !== "BREEDER") {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
@@ -55,7 +60,7 @@ const updateBird = async (req: Request, res: Response) => {
         id: params.id,
       },
       data: {
-        ...validatedData,
+        
       },
     });
     sendSuccess(res, updatedBird, "Bird updated successfully", STATUS.OK);
@@ -96,17 +101,31 @@ const getBirdsPerEvent = async (req: Request, res: Response) => {
   const params = validateSchema(req, res, "params", idParamsSchema);
   if (!params) return;
 
+  const query = validateSchema(req, res, "query", listBirdQuery);
+  if (!query) return;
+
   try {
-    const birds = await prisma.bird.findMany({
+    const birds = await prisma.eventInventoryItem.findMany({
       where: {
-        eventInventoryItems: {
-          some: {
-            eventId: params.id,
+        eventId: params.id,
+        bird: {
+          birdName: {
+            contains: query.q || undefined,
+            mode: "insensitive",
           },
         },
       },
       include: {
-        eventInventoryItems: true,
+        bird: {
+          include: {
+            breeder: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
     });
     sendSuccess(res, birds, "Birds fetched successfully", STATUS.OK);

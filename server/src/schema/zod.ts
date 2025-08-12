@@ -151,6 +151,49 @@ const paypalPaymentSchema = z.object({
   orderId: z.string().min(1, "Order ID is required"),
 });
 
+const listBirdQuery = z.object({
+  q: z.string().optional(),
+});
+
+const updateEventInventoryItemSchema = z.object({
+  band_1: z.string().min(1, "Band 1 is required"),
+  band_2: z.string().min(1, "Band 2 is required"),
+  band_3: z.string().min(1, "Band 3 is required"),
+  band_4: z.string().min(1, "Band 4 is required"),
+  rfId: z.string().optional(),
+  color: z.string().min(1, "Color is required"),
+  birdName: z.string().min(1, "Bird Name is required"),
+  note: z.string().optional(),
+  sex: z.enum(["HEN", "COCK"]),
+  is_active: z.boolean(),
+  is_lost: z.boolean(),
+  lost_date: z.coerce.date().nullable(),
+  arrivalDate: z.coerce.date().nullable(),
+  departureDate: z.coerce.date().nullable(),
+});
+
+const createRaceSchema = z.object({
+  type: z.enum([
+    "TRAINING",
+    "INVENTORY",
+    "LOFT_FLY",
+    "PULLING_FLIGHT",
+    "FINAL_RACE",
+    "HOTSPOT_1",
+    "HOTSPOT_2",
+    "HOTSPOT_3",
+    "AVG_WINNER",
+  ]),
+  eventId: z.uuid("Invalid event ID format"),
+  location: z.string().min(1, "Location is required"),
+  distance: z.coerce
+    .number()
+    .int()
+    .min(1, "Distance must be a positive integer"),
+  startTime: z.coerce.date(),
+  arrivalDate: z.coerce.date(),
+});
+
 export {
   userSignupSchema,
   userLoginSchema,
@@ -166,4 +209,7 @@ export {
   createOrderSchema,
   paypalPaymentSchema,
   queryParamsSchema,
+  listBirdQuery,
+  createRaceSchema,
+  updateEventInventoryItemSchema,
 };
