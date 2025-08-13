@@ -6,7 +6,6 @@ import { sendError, sendSuccess } from "../types/api-response";
 import { STATUS } from "../utils/statusCodes";
 import bcrypt from "bcrypt";
 import { generateJWTToken } from "../utils/jwtToken";
-import { clearCookie, setCookie } from "../utils/cookies";
 import { env } from "../env";
 
 const breedersignup = async (req: Request, res: Response) => {
@@ -34,8 +33,7 @@ const breedersignup = async (req: Request, res: Response) => {
       },
     });
     const token = generateJWTToken({ userId: user.id, role: user.role });
-    setCookie(res, token, req.hostname);
-    sendSuccess(res, user, "User created successfully", STATUS.CREATED);
+    sendSuccess(res, { token }, "User created successfully", STATUS.CREATED);
   } catch (error) {
     console.error("Error during signup:", error);
     sendError(res, "Internal server error", {}, STATUS.INTERNAL_SERVER_ERROR);
@@ -75,9 +73,8 @@ const breederlogin = async (req: Request, res: Response) => {
       return;
     }
     const token = generateJWTToken({ userId: user.id, role: user.role });
-    setCookie(res, token, req.hostname);
     const { password, ...userData } = user;
-    sendSuccess(res, userData, "Login successful", STATUS.OK);
+    sendSuccess(res, { token }, "Login successful", STATUS.OK);
   } catch (error) {
     console.error("Error during login:", error);
     sendError(res, "Internal server error", {}, STATUS.INTERNAL_SERVER_ERROR);
@@ -109,8 +106,7 @@ const adminSignup = async (req: Request, res: Response) => {
       },
     });
     const token = generateJWTToken({ userId: user.id, role: user.role });
-    setCookie(res, token, req.hostname);
-    sendSuccess(res, user, "User created successfully", STATUS.CREATED);
+    sendSuccess(res, { token }, "User created successfully", STATUS.CREATED);
   } catch (error) {
     console.error("Error during signup:", error);
     sendError(res, "Internal server error", {}, STATUS.INTERNAL_SERVER_ERROR);
@@ -139,9 +135,8 @@ const adminLogin = async (req: Request, res: Response) => {
       return;
     }
     const token = generateJWTToken({ userId: user.id, role: user.role });
-    setCookie(res, token, req.hostname);
     const { password, ...userData } = user;
-    sendSuccess(res, userData, "Login successful", STATUS.OK);
+    sendSuccess(res, { token }, "Login successful", STATUS.OK);
   } catch (error) {
     console.error("Error during login:", error);
     sendError(res, "Internal server error", {}, STATUS.INTERNAL_SERVER_ERROR);
@@ -150,7 +145,6 @@ const adminLogin = async (req: Request, res: Response) => {
 
 const breederlogout = async (req: Request, res: Response) => {
   try {
-    clearCookie(res, req.hostname);
     sendSuccess(res, {}, "Logout successful", STATUS.OK);
   } catch (error) {
     console.error("Error during logout:", error);
@@ -160,7 +154,6 @@ const breederlogout = async (req: Request, res: Response) => {
 
 const adminLogout = async (req: Request, res: Response) => {
   try {
-    clearCookie(res, req.hostname);
     sendSuccess(res, {}, "Logout successful", STATUS.OK);
   } catch (error) {
     console.error("Error during logout:", error);
