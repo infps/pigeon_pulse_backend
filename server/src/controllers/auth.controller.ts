@@ -6,7 +6,7 @@ import { sendError, sendSuccess } from "../types/api-response";
 import { STATUS } from "../utils/statusCodes";
 import bcrypt from "bcrypt";
 import { generateJWTToken } from "../utils/jwtToken";
-import { setCookie } from "../utils/cookies";
+import { clearCookie, setCookie } from "../utils/cookies";
 import { env } from "../env";
 
 const breedersignup = async (req: Request, res: Response) => {
@@ -34,7 +34,7 @@ const breedersignup = async (req: Request, res: Response) => {
       },
     });
     const token = generateJWTToken({ userId: user.id, role: user.role });
-    setCookie(res, token);
+    setCookie(res, token, env.BREEDER_DOMAIN);
     sendSuccess(res, user, "User created successfully", STATUS.CREATED);
   } catch (error) {
     console.error("Error during signup:", error);
@@ -75,7 +75,7 @@ const breederlogin = async (req: Request, res: Response) => {
       return;
     }
     const token = generateJWTToken({ userId: user.id, role: user.role });
-    setCookie(res, token);
+    setCookie(res, token, env.BREEDER_DOMAIN);
     const { password, ...userData } = user;
     sendSuccess(res, userData, "Login successful", STATUS.OK);
   } catch (error) {
@@ -109,7 +109,7 @@ const adminSignup = async (req: Request, res: Response) => {
       },
     });
     const token = generateJWTToken({ userId: user.id, role: user.role });
-    setCookie(res, token);
+    setCookie(res, token, env.ADMIN_DOMAIN);
     sendSuccess(res, user, "User created successfully", STATUS.CREATED);
   } catch (error) {
     console.error("Error during signup:", error);
@@ -139,7 +139,7 @@ const adminLogin = async (req: Request, res: Response) => {
       return;
     }
     const token = generateJWTToken({ userId: user.id, role: user.role });
-    setCookie(res, token);
+    setCookie(res, token, env.ADMIN_DOMAIN);
     const { password, ...userData } = user;
     sendSuccess(res, userData, "Login successful", STATUS.OK);
   } catch (error) {
@@ -150,7 +150,7 @@ const adminLogin = async (req: Request, res: Response) => {
 
 const breederlogout = async (req: Request, res: Response) => {
   try {
-    setCookie(res, "");
+    clearCookie(res, env.BREEDER_DOMAIN);
     sendSuccess(res, {}, "Logout successful", STATUS.OK);
   } catch (error) {
     console.error("Error during logout:", error);
@@ -160,7 +160,7 @@ const breederlogout = async (req: Request, res: Response) => {
 
 const adminLogout = async (req: Request, res: Response) => {
   try {
-    setCookie(res, "");
+    clearCookie(res, env.ADMIN_DOMAIN);
     sendSuccess(res, {}, "Logout successful", STATUS.OK);
   } catch (error) {
     console.error("Error during logout:", error);

@@ -1,12 +1,12 @@
 import type { Response } from "express";
 import { env } from "../env";
-const setCookie = (res: Response, accessToken: string) => {
+const setCookie = (res: Response, accessToken: string, domain: string) => {
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
     secure: env.NODE_ENV === "production",
     sameSite: "strict",
     maxAge: 24 * 60 * 60 * 1000, // 1 day
-    // domain: domain,
+    domain: domain,
   });
 };
 
@@ -15,7 +15,7 @@ const clearCookie = (res: Response, domain: string) => {
     httpOnly: true,
     secure: env.NODE_ENV === "production",
     sameSite: "strict",
-    // domain: domain,
+    domain: domain,
   });
 };
 
