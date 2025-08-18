@@ -119,6 +119,9 @@ const getBreedersAddressBook = async (req: Request, res: Response) => {
           },
         },
       },
+      omit: {
+        password: true,
+      },
     });
     sendSuccess(
       res,

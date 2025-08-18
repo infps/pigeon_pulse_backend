@@ -20,15 +20,6 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  if (err instanceof SyntaxError && "body" in err) {
-    return res.status(400).json({
-      message: "Invalid JSON format",
-      details: err.message,
-    });
-  }
-  next(err);
-});
 
 app.use((req, res, next) => {
   //logging middleware
@@ -44,6 +35,16 @@ app.get("/", (req: Request, res: Response) => {
 app.use("/api", apiRouter);
 app.use((req: Request, res: Response) => {
   res.status(404).send("API Endpoint not found");
+});
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof SyntaxError && "body" in err) {
+    return res.status(400).json({
+      message: "Invalid JSON format",
+      details: err.message,
+    });
+  }
+  console.log("Error occurred:", err);
+  next(err);
 });
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
