@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireRole } from "../middlewares/auth.middleware";
 import {
+  getBreedersAddressBook,
   getBreedersByEvent,
   getProfile,
   updateProfile,
@@ -25,4 +26,5 @@ userRouter.get(
   getBreedersByEvent
 );
 
+userRouter.get("/breeders", requireRole(["ADMIN"]), getBreedersAddressBook);
 export default userRouter;
