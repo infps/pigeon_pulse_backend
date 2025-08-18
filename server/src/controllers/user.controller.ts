@@ -105,6 +105,12 @@ const getBreedersAddressBook = async (req: Request, res: Response) => {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
     return;
   }
+  const { q } = req.query;
+
+  if (q && typeof q !== "string") {
+    sendError(res, "Invalid query parameter", {}, STATUS.BAD_REQUEST);
+    return;
+  }
   try {
     const breeders = await prisma.user.findMany({
       where: {
@@ -118,6 +124,20 @@ const getBreedersAddressBook = async (req: Request, res: Response) => {
             },
           },
         },
+        OR: [
+          {
+            name: {
+              contains: q || "",
+              mode: "insensitive",
+            },
+          },
+          {
+            email: {
+              contains: q || "",
+              mode: "insensitive",
+            },
+          },
+        ],
       },
       omit: {
         password: true,
