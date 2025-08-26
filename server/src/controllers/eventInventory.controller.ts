@@ -25,7 +25,11 @@ const createEventInventory = async (req: Request, res: Response) => {
         id: true,
         feeSchema: {
           select: {
+            perchFee: true,
             entryFee: true,
+            hs1Fee: true,
+            hs2Fee: true,
+            hs3Fee: true,
           },
         },
       },
@@ -41,7 +45,7 @@ const createEventInventory = async (req: Request, res: Response) => {
       return;
     }
     const totalAmount = (
-      validatedData.birds.length * (doesEventExist.feeSchema?.entryFee ?? 0)
+      validatedData.birds.length * (doesEventExist.feeSchema.perchFee ?? 0)
     ).toFixed(2);
 
     const birds = await prisma.bird.findMany({
@@ -75,7 +79,7 @@ const createEventInventory = async (req: Request, res: Response) => {
                 name: bird.birdName,
                 unit_amount: {
                   currency_code: "USD",
-                  value: (doesEventExist.feeSchema?.entryFee ?? 0).toFixed(2),
+                  value: (doesEventExist.feeSchema?.perchFee ?? 0).toFixed(2),
                 },
                 quantity: "1",
               })),
@@ -98,27 +102,27 @@ const createEventInventory = async (req: Request, res: Response) => {
         },
       }
     );
-    console.log("Paypal Order Response:", paypalOrder.body);
     const orderData = JSON.parse(paypalOrder.body);
     await prisma.$transaction(async (tx) => {
-      await tx.eventInventoryItem.createMany({
-        data: validatedData.birds.map((bird) => ({
-          eventId: validatedData.eventId,
-          birdId: bird,
-        })),
-      });
-
       const inventory = await tx.eventInventory.create({
         data: {
           loft: "Main Loft",
           reserved_birds: validatedData.birds.length,
           breederId: breeder.id,
           eventId: validatedData.eventId,
+          eventInventoryItems: {
+            create: validatedData.birds.map((bird) => ({
+              birdId: bird,
+              eventId: validatedData.eventId,
+            })),
+          },
         },
       });
 
       await tx.payment.create({
         data: {
+          paymentDate: new Date(),
+          type: "PERCH_FEE",
           paymentMethod: "PAYPAL",
           paymentValue: parseFloat(totalAmount),
           transactionId: orderData.id,
@@ -127,6 +131,29 @@ const createEventInventory = async (req: Request, res: Response) => {
           eventInventoryId: inventory.id,
         },
       });
+
+      // Create due payment entries for other fees
+      const feeTypes = [
+        { type: "ENTRY_FEE", amount: doesEventExist.feeSchema.entryFee },
+        { type: "HOTSPOT_FEE_1", amount: doesEventExist.feeSchema.hs1Fee },
+        { type: "HOTSPOT_FEE_2", amount: doesEventExist.feeSchema.hs2Fee },
+        { type: "HOTSPOT_FEE_3", amount: doesEventExist.feeSchema.hs3Fee },
+      ];
+
+      for (const feeType of feeTypes) {
+        if (feeType.amount && feeType.amount > 0) {
+          await tx.payment.create({
+            data: {
+              type: feeType.type as any,
+              paymentMethod: "PAYPAL",
+              paymentValue: feeType.amount,
+              status: "DUE",
+              breederId: breeder.id,
+              eventInventoryId: inventory.id,
+            },
+          });
+        }
+      }
     });
     sendSuccess(
       res,
@@ -166,13 +193,8 @@ const getMYEvents = async (req: Request, res: Response) => {
         },
         reserved_birds: true,
         loft: true,
-        payment: {
-          select: {
-            status: true,
-            paymentValue: true,
-            transactionId: true,
-          },
-        },
+
+        registration_date: true,
       },
     });
     sendSuccess(res, events, "My events retrieved successfully", STATUS.OK);
@@ -225,7 +247,10 @@ const listEventInventory = async (req: Request, res: Response) => {
             state: true,
           },
         },
-        payment: {
+        payments: {
+          where: {
+            type: "PERCH_FEE",
+          },
           select: {
             paymentValue: true,
           },
@@ -243,6 +268,70 @@ const listEventInventory = async (req: Request, res: Response) => {
     sendError(
       res,
       "Failed to retrieve event inventories",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+const getEventInventoryDetails = async (req: Request, res: Response) => {
+  if (!req.user || req.user.role !== "ADMIN") {
+    sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+
+  try {
+    const eventInventory = await prisma.eventInventory.findUnique({
+      where: { id: params.id },
+      select: {
+        breeder: {
+          select: {
+            name: true,
+          },
+        },
+        event: {
+          select: {
+            name: true,
+            date: true,
+          },
+        },
+        payments: true,
+        eventInventoryItems: {
+          include: {
+            bird: {
+              include: {
+                breeder: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        registration_date: true,
+        reserved_birds: true,
+        loft: true,
+      },
+    });
+    if (!eventInventory) {
+      sendError(res, "Event inventory not found", {}, STATUS.NOT_FOUND);
+      return;
+    }
+    sendSuccess(
+      res,
+      eventInventory,
+      "Event inventory retrieved successfully",
+      STATUS.OK
+    );
+  } catch (error) {
+    console.error("Error retrieving event inventory:", error);
+    sendError(
+      res,
+      "Failed to retrieve event inventory",
       {},
       STATUS.INTERNAL_SERVER_ERROR
     );
@@ -320,4 +409,5 @@ export {
   getMYEvents,
   listEventInventory,
   updateEventInventoryItem,
+  getEventInventoryDetails,
 };

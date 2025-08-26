@@ -20,7 +20,6 @@ const getProfile = async (req: Request, res: Response) => {
         role: true,
       },
     });
-    console.log("User profile retrieved:", user);
     if (!user) {
       sendError(res, "User not found", {}, STATUS.NOT_FOUND);
       return;

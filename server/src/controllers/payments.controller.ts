@@ -124,4 +124,52 @@ const capturePayment = async (req: Request, res: Response) => {
   }
 };
 
-export { capturePayment };
+const getMyPayments = async (req: Request, res: Response) => {
+  if (!req.user || req.user.role !== "BREEDER") {
+    return sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+  }
+
+  try {
+    const breederId = req.user.id;
+    const payments = await prisma.payment.findMany({
+      where: {
+        breederId: breederId,
+      },
+      select: {
+        id: true,
+        paymentDate: true,
+        paymentValue: true,
+        status: true,
+        type: true,
+        eventInventory: {
+          select: {
+            event: {
+              select: {
+                id: true,
+                name: true,
+                date: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return sendSuccess(
+      res,
+      payments,
+      "My payments retrieved successfully",
+      STATUS.OK
+    );
+  } catch (error) {
+    console.error("Error retrieving my payments:", error);
+    return sendError(
+      res,
+      "Failed to retrieve my payments",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+export { capturePayment, getMyPayments };

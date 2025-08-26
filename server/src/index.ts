@@ -8,6 +8,8 @@ import { env } from "./env";
 import type { ReqUser } from "./types/types";
 import apiRouter from "./routers/api.router";
 import cookieParser from "cookie-parser";
+import { sendError } from "./types/api-response";
+import { STATUS } from "./utils/statusCodes";
 const app = express();
 const PORT = env.PORT || 4000;
 
@@ -44,7 +46,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     });
   }
   console.log("Error occurred:", err);
-  next(err);
+  sendError(res, "Internal Server Error", {}, STATUS.INTERNAL_SERVER_ERROR);
 });
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

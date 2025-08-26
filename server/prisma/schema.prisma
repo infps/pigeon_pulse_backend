@@ -8,6 +8,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PaymentType {
+  PERCH_FEE
+  ENTRY_FEE
+  HOTSPOT_FEE_1
+  HOTSPOT_FEE_2
+  HOTSPOT_FEE_3
+  FINAL_RACE_FEE
+  OTHER
+}
+
 enum Role {
   BREEDER
   ADMIN
@@ -79,6 +89,7 @@ model FeeSchema {
   id                 String  @id @default(uuid())
   name               String
   entryFee           Float
+  perchFee           Float
   expensePercentage  Float
   minEntryFee        Int
   entryFeeRefundable Boolean @default(false)
@@ -171,7 +182,7 @@ model EventInventory {
   loft                String
   note                String?
   isPaid              Boolean              @default(false)
-  payment             Payment?
+  payments            Payment[]
   eventInventoryItems EventInventoryItem[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -310,14 +321,15 @@ model RaceItemResult {
 
 model Payment {
   id               String         @id @default(uuid())
-  paymentDate      DateTime       @default(now())
+  paymentDate      DateTime?
   paymentValue     Float
   paymentMethod    String
   paymentNote      String?
+  type             PaymentType
   transactionId    String?        @unique
   breeder          User           @relation(fields: [breederId], references: [id], onDelete: Cascade)
   breederId        String
   status           String         @default("PENDING")
   eventInventory   EventInventory @relation(fields: [eventInventoryId], references: [id], onDelete: Cascade)
-  eventInventoryId String         @unique
+  eventInventoryId String
 }

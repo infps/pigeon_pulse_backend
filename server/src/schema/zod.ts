@@ -14,6 +14,7 @@ const userLoginSchema = z.object({
 const feeSchemaCreate = z.object({
   name: z.string().min(1, "Fee name is required"),
   entryFee: z.number().min(0, "Entry fee must be a non-negative number"),
+  perchFee: z.number().min(0, "Perch fee must be a non-negative number"),
   expensePercentage: z
     .number()
     .min(0, "Expense percentage must be a non-negative number")

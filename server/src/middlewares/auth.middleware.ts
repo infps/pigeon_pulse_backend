@@ -22,7 +22,6 @@ export const requireRole = (allowedRoles: Role[]) => {
         where: { id: decoded.userId },
         select: { id: true, role: true, email: true, name: true, status: true },
       });
-      console.log("User found:", user);
       if (
         !user ||
         !allowedRoles.includes(user.role) ||

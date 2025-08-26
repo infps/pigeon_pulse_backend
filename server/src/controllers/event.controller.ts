@@ -167,6 +167,16 @@ const listEvent = async (req: Request, res: Response) => {
             EventInventoryItem: true,
           },
         },
+        feeSchemaId: true,
+        avgWinnerPrizeSchemaId: true,
+        hotspot1PrizeSchemaId: true,
+        hotspot2PrizeSchemaId: true,
+        hotspot3PrizeSchemaId: true,
+        finalRacePrizeSchemaId: true,
+        hotspotCount: true,
+        trainingCount: true,
+        finalRaceCount: true,
+        inventoryCount: true,
         feeSchema: {
           select: {
             entryFee: true,
@@ -174,6 +184,7 @@ const listEvent = async (req: Request, res: Response) => {
             hs2Fee: true,
             hs3Fee: true,
             finalRaceFee: true,
+            perchFee: true,
           },
         },
         finalRacePrizeSchema: {
@@ -189,7 +200,6 @@ const listEvent = async (req: Request, res: Response) => {
         },
       },
     });
-    console.log("Event retrieved:", event);
     if (!event) {
       sendError(res, "Event not found", {}, STATUS.NOT_FOUND);
       return;
