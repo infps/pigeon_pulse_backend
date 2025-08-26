@@ -1,380 +1,428 @@
 import type { Request, Response } from "express";
-import {
-  createRaceOrderBody,
-  getIdParams,
-  getRaceQueryParams,
-} from "../schema/zodSchema";
+import { sendError, sendSuccess } from "../types/api-response";
+import { STATUS } from "../utils/statusCodes";
+import validateSchema from "../utils/validators";
+import { createRaceSchema, idParamsSchema } from "../schema/zod";
 import { prisma } from "../lib/prisma";
-import { getAccessToken } from "../lib/paypalAccessToken";
-import got from "got";
 
-const getRaces = async (req: Request, res: Response) => {
-  const validatedQuery = getRaceQueryParams.parse(req.query);
-  if (!validatedQuery) {
-    res.status(400).json({ error: "Invalid query parameters" });
+function typeToRaceId(type: string, number: number): string {
+  switch (type) {
+    case "TRAINING":
+      return `T-${number}`;
+    case "INVENTORY":
+      return `I-${number}`;
+    case "LOFT_FLY":
+      return `LF-${number}`;
+    case "PULLING_FLIGHT":
+      return `PF-${number}`;
+    case "FINAL_RACE":
+      return `FR-${number}`;
+    case "HOTSPOT_1":
+      return `HS1-${number}`;
+    case "HOTSPOT_2":
+      return `HS2-${number}`;
+    case "HOTSPOT_3":
+      return `HS3-${number}`;
+    case "AVG_WINNER":
+      return `AW-${number}`;
+    default:
+      return `UNKNOWN-${number}`;
+  }
+}
+
+const createRace = async (req: Request, res: Response) => {
+  if (!req.user || req.user.role !== "ADMIN") {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
     return;
   }
+  const validatedData = validateSchema(req, res, "body", createRaceSchema);
+  if (!validatedData) return;
+
   try {
-    const { page = 1, search = "", status } = validatedQuery;
-    const limit = 10;
-    const offset = (page - 1) * limit;
-    const [races, totalRaces] = await prisma.$transaction([
-      prisma.race.findMany({
-        where: {
-          name: {
-            contains: search,
-            mode: "insensitive",
-          },
-          status: status ? status : undefined,
+    const event = await prisma.event.findUnique({
+      where: {
+        id: validatedData.eventId,
+      },
+      select: {
+        id: true,
+        EventInventoryItem: {
+          select: { id: true },
         },
-        include: {
-          _count: {
-            select: {
-              entries: {
-                where: {
-                  status: "PAID",
-                },
-              },
-            },
-          },
-        },
-        skip: offset,
-        take: limit,
-        orderBy: {
-          date: "asc",
-        },
-      }),
-      prisma.race.count({
-        where: {
-          name: {
-            contains: search,
-            mode: "insensitive",
-          },
-          status: status ? status : undefined,
-        },
-      }),
-    ]);
-    const totalPages = Math.ceil(totalRaces / limit);
-    res.status(200).json({
-      message: "Races fetched successfully",
-      data: races,
-      pagination: {
-        page,
-        limit,
-        total: totalRaces,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
       },
     });
-  } catch (error) {
-    console.error("Error fetchning races:", error);
-    res.status(500).json({
-      error: "An error occurred while fetching races",
+    if (!event) {
+      sendError(res, "Event not found", {}, STATUS.NOT_FOUND);
+      return;
+    }
+    const raceNumber = await prisma.race.count({
+      where: {
+        eventId: validatedData.eventId,
+        type: validatedData.type,
+      },
     });
+
+    const race = await prisma.$transaction(async (tx) => {
+      const race = await tx.race.create({
+        data: {
+          ...validatedData,
+          externalRaceId: typeToRaceId(validatedData.type, raceNumber + 1),
+        },
+      });
+
+      await tx.raceItem.createMany({
+        data: event.EventInventoryItem.map((item) => ({
+          eventInventoryItemId: item.id,
+          raceId: race.id,
+        })),
+      });
+
+      return race;
+    });
+
+    sendSuccess(res, race, "Race created successfully", STATUS.CREATED);
+  } catch (error) {
+    sendError(res, "Error creating race", {}, STATUS.INTERNAL_SERVER_ERROR);
   }
 };
 
-const getRaceById = async (req: Request, res: Response) => {
-  const validatedParams = getIdParams.safeParse(req.params);
-  if (!validatedParams.success) {
-    res.status(400).json({ error: "Invalid parameters" });
+const listRaces = async (req: Request, res: Response) => {
+  if (!req.user || req.user.role !== "ADMIN") {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
     return;
   }
-  const { id } = validatedParams.data;
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+
+  try {
+    const races = await prisma.race.findMany({
+      where: {
+        eventId: params.id,
+      },
+    });
+
+    sendSuccess(res, races, "Races retrieved successfully", STATUS.OK);
+  } catch (error) {
+    console.error("Error retrieving races:", error);
+    sendError(res, "Error retrieving races", {}, STATUS.INTERNAL_SERVER_ERROR);
+  }
+};
+
+const listRace = async (req: Request, res: Response) => {
+  if (!req.user || req.user.role !== "ADMIN") {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+
   try {
     const race = await prisma.race.findUnique({
-      where: { id },
-      include: {
-        _count: {
+      where: {
+        id: params.id,
+      },
+    });
+    if (!race) {
+      sendError(res, "Race not found", {}, STATUS.NOT_FOUND);
+      return;
+    }
+    sendSuccess(res, race, "Race retrieved successfully", STATUS.OK);
+  } catch (error) {
+    console.error("Error retrieving race:", error);
+    sendError(res, "Error retrieving race", {}, STATUS.INTERNAL_SERVER_ERROR);
+  }
+};
+
+const listRaceItems = async (req: Request, res: Response) => {
+  if (!req.user || req.user.role !== "ADMIN") {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+
+  try {
+    const raceItems = await prisma.raceItem.findMany({
+      where: {
+        raceId: params.id,
+      },
+      select: {
+        loftBasketed: true,
+        raceBasketed: true,
+        raceBasketTime: true,
+        eventInventoryItem: {
           select: {
-            entries: {
-              where: {
-                status: "PAID",
-              },
-            },
-          },
-        },
-      },
-    });
-    if (!race) {
-      res.status(404).json({ error: " Race not found" });
-      return;
-    }
-    res.status(200).json({
-      message: "Race fetched successfully",
-      data: race,
-    });
-  } catch (error) {
-    console.error("Error fetching race", error);
-    res.status(500).json({
-      error: "An error occurred while fetching the race",
-    });
-  }
-};
-
-const createRaceOrder = async (req: Request, res: Response) => {
-  if (!req.user || !req.session) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  const validatedParams = getIdParams.safeParse(req.params);
-  if (!validatedParams.success) {
-    res.status(400).json({ error: "Invalid parameters" });
-    return;
-  }
-  const { id } = validatedParams.data;
-  try {
-    const race = await prisma.race.findUnique({
-      where: { id },
-    });
-    if (!race) {
-      res.status(404).json({ error: "Race not found" });
-      return;
-    }
-    const validatedBody = createRaceOrderBody.safeParse(req.body);
-    if (!validatedBody.success) {
-      res.status(400).json({
-        error: "Invalid request body",
-        details: validatedBody.error.errors,
-      });
-      return;
-    }
-    const { birdId } = validatedBody.data;
-
-    // Check if race is still accepting entries
-    if (race.status !== "UPCOMING") {
-      res.status(400).json({ error: "Race is not accepting entries" });
-      return;
-    }
-
-    // Check if there are available slots
-    const currentEntries = await prisma.raceEntry.count({
-      where: { raceId: id, status: { in: ["PENDING", "PAID"] } },
-    });
-
-    if (currentEntries + birdId.length > race.maxParticipants) {
-      res
-        .status(400)
-        .json({ error: "Not enough slots available for all birds" });
-      return;
-    }
-
-    const birds = await prisma.bird.findMany({
-      where: {
-        id: {
-          in: birdId,
-        },
-        loft: {
-          userId: req.user.id,
-        },
-      },
-    });
-    if (birds.length !== birdId.length) {
-      res.status(404).json({ error: "Some birds not found in your loft" });
-      return;
-    }
-
-    // Check if any bird is already entered in this race
-    const existingEntries = await prisma.raceEntry.findMany({
-      where: {
-        raceId: id,
-        birdId: { in: birdId },
-      },
-    });
-
-    if (existingEntries.length > 0) {
-      res
-        .status(400)
-        .json({ error: "Some birds are already entered in this race" });
-      return;
-    }
-
-    const accessToken = await getAccessToken();
-    if (!accessToken) {
-      res.status(500).json({ error: "Failed to fetch PayPal access token" });
-      return;
-    }
-
-    // Calculate total amount
-    const totalAmount = (birdId.length * race.entryFee).toFixed(2);
-
-    const paypalOrder = await got.post(
-      `${process.env.PAYPAL_API_BASE}/v2/checkout/orders`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        json: {
-          intent: "CAPTURE",
-          purchase_units: [
-            {
-              items: birdId.map((birdId, index) => {
-                const bird = birds.find((b) => b.id === birdId);
-                if (!bird) throw new Error(`Bird with ID ${birdId} not found`);
-                return {
-                  name: `Race Entry - ${bird.name}`,
-                  description: `Entry for ${race.name} - Bird: ${bird.name} (${bird.bandNumber})`,
-                  quantity: "1",
-                  unit_amount: {
-                    currency_code: "USD",
-                    value: race.entryFee.toFixed(2),
-                  },
-                };
-              }),
-              amount: {
-                currency_code: "USD",
-                value: totalAmount,
-                breakdown: {
-                  item_total: {
-                    currency_code: "USD",
-                    value: totalAmount,
+            band: true,
+            rfId: true,
+            bird: {
+              select: {
+                color: true,
+                is_lost: true,
+                breeder: {
+                  select: {
+                    name: true,
                   },
                 },
               },
             },
-          ],
-          application_context: {
-            return_url: `${process.env.FRONTEND_URL}/payment/success`,
-            cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
           },
         },
-      }
-    );
-
-    const orderData = JSON.parse(paypalOrder.body);
-
-    // Create payment record
-    const payment = await prisma.payment.create({
-      data: {
-        paypalTransactionId: orderData.id,
-        payerEmail: req.user!.email,
-        amount: parseFloat(totalAmount),
-        currency: "USD",
-        status: "PENDING",
-        paymentTime: new Date(),
-        userId: req.user!.id,
       },
     });
 
-    // Create race entries with PENDING status
-    const raceEntries = await prisma.raceEntry.createMany({
-      data: birdId.map((birdId) => ({
-        raceId: id,
-        birdId,
-        userId: req.user!.id,
-        paymentId: payment.id,
-        status: "PENDING",
-      })),
-    });
-
-    res.status(201).json({
-      message: "Race order created successfully",
-      data: {
-        orderId: orderData.id,
-      },
-    });
+    sendSuccess(res, raceItems, "Race items retrieved successfully", STATUS.OK);
   } catch (error) {
-    console.error("Error creating race order:", error);
-    res.status(500).json({
-      error: "An error occurred while creating the race order",
-      details: error instanceof Error ? error.message : "Unknown error",
-    });
+    console.error("Error retrieving race items:", error);
+    sendError(
+      res,
+      "Error retrieving race items",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
   }
 };
 
-const capturePayPalPayment = async (req: Request, res: Response) => {
+const raceItemLoftBasket = async (req: Request, res: Response) => {
+  if (!req.user || req.user.role !== "ADMIN") {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+  const { rfId } = req.body;
+  if (!rfId) {
+    sendError(res, "RFID is required", {}, STATUS.BAD_REQUEST);
+    return;
+  }
+
   try {
-    const { orderID } = req.body;
-
-    if (!orderID) {
-      res.status(400).json({ error: "Order ID is required" });
-      return;
-    }
-
-    const accessToken = await getAccessToken();
-    if (!accessToken) {
-      res.status(500).json({ error: "Failed to fetch PayPal access token" });
-      return;
-    }
-
-    // Capture the payment
-    const captureResponse = await got.post(
-      `${process.env.PAYPAL_API_BASE}/v2/checkout/orders/${orderID}/capture`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
+    const raceItem = await prisma.raceItem.findFirst({
+      where: {
+        eventInventoryItem: {
+          rfId,
         },
-      }
-    );
-
-    const captureData = JSON.parse(captureResponse.body);
-
-    if (captureData.status === "COMPLETED") {
-      // Update payment status
-      const payment = await prisma.payment.findUnique({
-        where: { paypalTransactionId: orderID },
-        include: { raceEntries: true },
-      });
-
-      if (!payment) {
-        res.status(404).json({ error: "Payment not found" });
-        return;
-      }
-
-      // Update payment status to SUCCESS
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: "SUCCESS",
-          paymentTime: new Date(),
-        },
-      });
-
-      // Update all race entries status to PAID
-      await prisma.raceEntry.updateMany({
-        where: { paymentId: payment.id },
-        data: { status: "PAID" },
-      });
-
-      res.status(200).json({
-        message: "Payment captured successfully",
-        data: {
-          orderID,
-          paymentId: payment.id,
-          status: "SUCCESS",
-          entriesUpdated: payment.raceEntries.length,
-        },
-      });
-    } else {
-      // Payment failed, update status
-      await prisma.payment.update({
-        where: { paypalTransactionId: orderID },
-        data: { status: "FAILED" },
-      });
-
-      // Update race entries status to CANCELLED
-      await prisma.raceEntry.updateMany({
-        where: {
-          payment: { paypalTransactionId: orderID },
-        },
-        data: { status: "CANCELLED" },
-      });
-
-      res.status(400).json({
-        error: "Payment capture failed",
-        details: captureData,
-      });
-    }
-  } catch (error) {
-    console.error("Error capturing PayPal payment:", error);
-    res.status(500).json({
-      error: "An error occurred while capturing the payment",
-      details: error instanceof Error ? error.message : "Unknown error",
+        raceId: params.id,
+      },
     });
+
+    if (!raceItem) {
+      sendError(res, "Race item not found", {}, STATUS.NOT_FOUND);
+      return;
+    }
+    const updatedRaceItem = await prisma.raceItem.update({
+      where: {
+        id: raceItem.id,
+      },
+      data: {
+        loftBasketed: true,
+      },
+    });
+    sendSuccess(
+      res,
+      updatedRaceItem,
+      "Race item updated successfully",
+      STATUS.OK
+    );
+  } catch (error) {
+    console.error("Error retrieving race item:", error);
+    sendError(
+      res,
+      "Error retrieving race item",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
   }
 };
 
-export { getRaces, getRaceById, createRaceOrder, capturePayPalPayment };
+const raceItemRaceBasket = async (req: Request, res: Response) => {
+  if (!req.user || req.user.role !== "ADMIN") {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+  const { rfId } = req.body;
+  if (!rfId) {
+    sendError(res, "RFID is required", {}, STATUS.BAD_REQUEST);
+    return;
+  }
+
+  try {
+    const raceItem = await prisma.raceItem.findFirst({
+      where: {
+        eventInventoryItem: {
+          rfId,
+        },
+        raceId: params.id,
+      },
+    });
+
+    if (!raceItem) {
+      sendError(res, "Race item not found", {}, STATUS.NOT_FOUND);
+      return;
+    }
+
+    const updatedRaceItem = await prisma.raceItem.update({
+      where: {
+        id: raceItem.id,
+      },
+      data: {
+        raceBasketed: true,
+        raceBasketTime: new Date(),
+      },
+    });
+
+    sendSuccess(
+      res,
+      updatedRaceItem,
+      "Race item updated successfully",
+      STATUS.OK
+    );
+  } catch (error) {
+    console.error("Error retrieving race item:", error);
+    sendError(
+      res,
+      "Error retrieving race item",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+const listRaceResults = async (req: Request, res: Response) => {
+  if (!req.user || req.user.role !== "ADMIN") {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+
+  try {
+    const raceResults = await prisma.raceItem.findMany({
+      where: {
+        raceId: params.id,
+      },
+      select: {
+        raceItemResult: true,
+        eventInventoryItem: {
+          select: {
+            band: true,
+            rfId: true,
+            bird: {
+              select: {
+                color: true,
+                birdName: true,
+                breeder: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        raceItemResult: {
+          arrivalTime: "asc",
+        },
+      },
+    });
+    sendSuccess(
+      res,
+      raceResults,
+      "Race results retrieved successfully",
+      STATUS.OK
+    );
+  } catch (error) {
+    console.error("Error retrieving race results:", error);
+    sendError(
+      res,
+      "Error retrieving race results",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+const publishRaceResults = async (req: Request, res: Response) => {
+  if (!req.user || req.user.role !== "ADMIN") {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+  const { rfId } = req.body;
+  try {
+    const raceItem = await prisma.raceItem.findFirst({
+      where: {
+        eventInventoryItem: {
+          rfId,
+        },
+        raceId: params.id,
+      },
+      select: {
+        race: {
+          select: {
+            distance: true,
+            startTime: true,
+          },
+        },
+        id: true,
+      },
+    });
+
+    if (!raceItem) {
+      sendError(res, "Race item not found", {}, STATUS.NOT_FOUND);
+      return;
+    }
+
+    const elapsedHours =
+      (Date.now() - raceItem.race.startTime.getTime()) / (1000 * 60 * 60);
+
+    const updatedRaceResult = await prisma.raceItemResult.upsert({
+      where: {
+        raceItemId: raceItem.id,
+        raceItem: {
+          eventInventoryItem: {
+            rfId,
+          },
+        },
+      },
+      create: {
+        raceItemId: raceItem.id,
+        arrivalTime: new Date(),
+        distance: raceItem.race.distance,
+        speed: raceItem.race.distance / elapsedHours,
+      },
+      update: {
+        arrivalTime: new Date(),
+        distance: raceItem.race.distance,
+        speed: raceItem.race.distance / elapsedHours,
+      },
+    });
+    sendSuccess(
+      res,
+      updatedRaceResult,
+      "Race result published successfully",
+      STATUS.OK
+    );
+  } catch (error) {
+    console.error("Error publishing race result:", error);
+    sendError(
+      res,
+      "Error publishing race result",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+export {
+  createRace,
+  listRaces,
+  listRace,
+  listRaceItems,
+  raceItemLoftBasket,
+  raceItemRaceBasket,
+  listRaceResults,
+  publishRaceResults,
+};

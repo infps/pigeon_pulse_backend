@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -14,229 +8,328 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id            String       @id @default(uuid())
-  email         String       @unique
-  name          String?
-  role          String       @default("user")
-  lofts         Loft[]       @relation("LoftOwner")
-  sharedLofts   SharedLoft[]
-  payments      Payment[]
-  raceEntries   RaceEntry[]
-  createdAt     DateTime     @default(now())
-  emailVerified Boolean
-  image         String?
-  updatedAt     DateTime
-  banned        Boolean?
-  banReason     String?
-  banExpires    DateTime?
-  sessions      Session[]
-  accounts      Account[]
-
-  invitationsSent LoftInvitation[] @relation("Inviter")
-  invitationsReceived LoftInvitation[] @relation("Invitee")
-
-  @@map("user")
+enum PaymentType {
+  PERCH_FEE
+  ENTRY_FEE
+  HOTSPOT_FEE_1
+  HOTSPOT_FEE_2
+  HOTSPOT_FEE_3
+  FINAL_RACE_FEE
+  OTHER
 }
 
-model Loft {
-  id         String       @id @default(uuid())
-  loftId     String       @unique // Unique public-facing ID
-  name       String
-  location   String
-  userId     String
-  user       User         @relation("LoftOwner", fields: [userId], references: [id], onDelete: Cascade)
-  birds      Bird[]
-  sharedWith SharedLoft[]
-  invitations LoftInvitation[]
-  createdAt  DateTime     @default(now())
+enum Role {
+  BREEDER
+  ADMIN
+  SUPER_ADMIN
 }
 
-model SharedLoft {
-  id     String @id @default(uuid())
-  loft   Loft   @relation(fields: [loftId], references: [id], onDelete: Cascade)
-  loftId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String
-
-  // prevent duplicate sharing
-  @@unique([loftId, userId])
-}
-
-enum BirdGender {
-  MALE
-  FEMALE
-}
-
-model Bird {
-  id                String      @id @default(uuid())
-  name              String
-  bandNumber        String      @unique
-  breed             String?
-  color             String?
-  gender            BirdGender
-  age               Int?
-  photoUrl          String?
-  wingspan          Float?
-  vaccinationStatus Boolean     @default(false)
-  penNumber         String?
-  raceExperience    Int?        @default(0)
-  status            BirdStatus  @default(ACTIVE)
-  rfIdTag           String?     @unique
-  loft              Loft        @relation(fields: [loftId], references: [id], onDelete: Cascade)
-  loftId            String
-  raceEntries       RaceEntry[]
-  createdAt         DateTime    @default(now())
-}
-
-model LoftInvitation {
-  id         String      @id @default(uuid())
-  loft       Loft        @relation(fields: [loftId], references: [id], onDelete: Cascade)
-  loftId     String
-  invitedBy  User        @relation("Inviter", fields: [invitedById], references: [id], onDelete: Cascade)
-  invitedById String
-  invitedUser User?      @relation("Invitee", fields: [invitedUserId], references: [id], onDelete: Cascade)
-  invitedUserId String?  // Nullable if you're inviting by email only
-  status     InvitationStatus @default(PENDING)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-
-  @@unique([loftId, invitedById, invitedUserId])
-}
-
-enum InvitationStatus {
-  PENDING
-  ACCEPTED
-  DECLINED
-  EXPIRED
-}
-
-
-enum BirdStatus {
+enum UserStatus {
   ACTIVE
-  MISSING
-  HOSPITALIZED
+  INACTIVE
+  PROSPECT
+}
+
+enum EventType {
+  AGN
+  AS
+}
+
+enum EventStatus {
+  OPEN
+  CLOSED
+}
+
+enum RACETYPE {
+  TRAINING
+  INVENTORY
+  LOFT_FLY
+  PULLING_FLIGHT
+  FINAL_RACE
+  HOTSPOT_1
+  HOTSPOT_2
+  HOTSPOT_3
+  AVG_WINNER
+}
+
+model User {
+  id               String     @id @default(uuid())
+  email            String     @unique
+  name             String?
+  role             Role       @default(BREEDER)
+  password         String
+  country          String?
+  ssn              String?
+  taxNumber        String?
+  address          String?
+  city             String?
+  state            String?
+  zip              String?
+  primaryPhone     String?
+  cellPhone        String?
+  fax              String?
+  sms              String?
+  alternativeEmail String?
+  webAddress       String?
+  status           UserStatus @default(ACTIVE)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  payments Payment[]
+
+  breederEvents EventInventory[]
+  birds         Bird[]
+
+  feeSchemasCreated   FeeSchema[]
+  prizeSchemasCreated PrizeSchema[]
+  events              Event[]
+}
+
+model FeeSchema {
+  id                 String  @id @default(uuid())
+  name               String
+  entryFee           Float
+  perchFee           Float
+  expensePercentage  Float
+  minEntryFee        Int
+  entryFeeRefundable Boolean @default(false)
+  hs1Fee             Float
+  hs2Fee             Float
+  hs3Fee             Float
+  finalRaceFee       Float
+  maxBirds           Int
+  maxBackupBirds     Int
+  floatingBackup     Boolean @default(false)
+  Event              Event[]
+
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdById String
+}
+
+model PrizeSchema {
+  id              String              @id @default(uuid())
+  name            String
+  distributions   PrizeDistribution[]
+  finalRaceEvents Event[]             @relation("FinalRacePrize")
+  hotspot1Events  Event[]             @relation("Hotspot1Prize")
+  hotspot2Events  Event[]             @relation("Hotspot2Prize")
+  hotspot3Events  Event[]             @relation("Hotspot3Prize")
+  avgWinnerEvents Event[]             @relation("AvgWinnerPrize")
+
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdById String
+}
+
+model PrizeDistribution {
+  id            String      @id @default(uuid())
+  prizeSchema   PrizeSchema @relation(fields: [prizeSchemaId], references: [id], onDelete: Cascade)
+  prizeSchemaId String
+  fromPosition  Int
+  toPosition    Int
+  percentage    Float
+}
+
+model Event {
+  id             String      @id @default(uuid())
+  status         EventStatus @default(OPEN)
+  name           String
+  shortName      String
+  date           DateTime
+  type           EventType
+  trainingCount  Int
+  inventoryCount Int
+  finalRaceCount Int
+  hotspotCount   Int
+
+  races Race[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  creator   User   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  creatorId String
+
+  feeSchema   FeeSchema @relation(fields: [feeSchemaId], references: [id], onDelete: Restrict)
+  feeSchemaId String
+
+  finalRacePrizeSchema   PrizeSchema? @relation("FinalRacePrize", fields: [finalRacePrizeSchemaId], references: [id], onDelete: SetNull)
+  finalRacePrizeSchemaId String?
+
+  hotspot1PrizeSchema   PrizeSchema? @relation("Hotspot1Prize", fields: [hotspot1PrizeSchemaId], references: [id], onDelete: SetNull)
+  hotspot1PrizeSchemaId String?
+
+  hotspot2PrizeSchema   PrizeSchema? @relation("Hotspot2Prize", fields: [hotspot2PrizeSchemaId], references: [id], onDelete: SetNull)
+  hotspot2PrizeSchemaId String?
+
+  hotspot3PrizeSchema   PrizeSchema? @relation("Hotspot3Prize", fields: [hotspot3PrizeSchemaId], references: [id], onDelete: SetNull)
+  hotspot3PrizeSchemaId String?
+
+  avgWinnerPrizeSchema   PrizeSchema? @relation("AvgWinnerPrize", fields: [avgWinnerPrizeSchemaId], references: [id], onDelete: SetNull)
+  avgWinnerPrizeSchemaId String?
+
+  eventInventories   EventInventory[]
+  EventInventoryItem EventInventoryItem[]
+}
+
+model EventInventory {
+  id                  String               @id @default(uuid())
+  event               Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId             String
+  breeder             User                 @relation(fields: [breederId], references: [id], onDelete: Cascade)
+  breederId           String
+  registration_date   DateTime             @default(now())
+  reserved_birds      Int
+  loft                String
+  note                String?
+  isPaid              Boolean              @default(false)
+  payments            Payment[]
+  eventInventoryItems EventInventoryItem[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model EventInventoryItem {
+  id            String    @id @default(uuid())
+  event         Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId       String
+  bird          Bird      @relation(fields: [birdId], references: [id], onDelete: Cascade)
+  birdId        String
+  rfId          String?   @unique // Unique per event, used for scans
+  arrivalDate   DateTime?
+  departureDate DateTime?
+
+  band   String? @unique
+  band_1 String?
+  band_2 String?
+  band_3 String?
+  band_4 String?
+
+  note String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  raceItems        RaceItem[] // Direct relation for faster lookups
+  EventInventory   EventInventory? @relation(fields: [eventInventoryId], references: [id], onDelete: Cascade)
+  eventInventoryId String?
+
+  @@index([rfId], map: "idx_rfId")
 }
 
 model Race {
-  id              String      @id @default(uuid())
-  name            String
-  date            DateTime
-  distanceKm      Float
-  startLocation   String
-  endLocation     String
-  entryFee        Float
-  maxParticipants Int
-  status          RaceStatus  @default(UPCOMING)
-  rules           String?
-  description     String?
-  entries         RaceEntry[]
-  photoUrl        String?
-  createdAt       DateTime    @default(now())
+  id                 String     @id @default(uuid())
+  type               RACETYPE
+  externalRaceId     String     @unique @map("RACE_ID")
+  event              Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId            String
+  location           String
+  distance           Int
+  startTime          DateTime
+  arrivalDate        DateTime
+  isClosed           Boolean    @default(false)
+  sunrise            DateTime?
+  sunset             DateTime?
+  weather            String?
+  wind               String?
+  temperature        String?
+  arrivalWeather     String?
+  arrivalWind        String?
+  arrivalTemperature String?
+  baskets            Basket[]
+  raceItems          RaceItem[]
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@index([eventId, startTime])
 }
 
-enum RaceStatus {
-  UPCOMING
-  LIVE
-  COMPLETED
+enum BirdSex {
+  COCK
+  HEN
 }
 
-model RaceEntry {
-  id          String         @id @default(uuid())
-  race        Race           @relation(fields: [raceId], references: [id], onDelete: Cascade)
-  raceId      String
-  bird        Bird           @relation(fields: [birdId], references: [id], onDelete: Cascade)
-  birdId      String
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId      String
-  payment     Payment?       @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-  paymentId   String?
-  status      EntryStatus    @default(PENDING)
-  birdStatus  BirdRaceStatus @default(UNKNOWN)
-  arrivalTime DateTime?
-  position    Int?
-  speed       Float?
-  createdAt   DateTime       @default(now())
+model Bird {
+  id           String    @id @default(uuid())
+  birdName     String
+  color        String
+  is_active    Boolean   @default(true)
+  is_lost      Boolean   @default(false)
+  lost_date    DateTime?
+  lost_race_id String?
+  imageUrl     String?
+  sex          BirdSex
 
-  @@unique([raceId, birdId])
+  breeder   User   @relation(fields: [breederId], references: [id], onDelete: Cascade)
+  breederId String
+
+  eventInventoryItems EventInventoryItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-enum BirdRaceStatus {
-  UNKNOWN
-  ARRIVED
-  DISQUALIFIED
-  RETIRED
-  MISSING
+model Basket {
+  id           String  @id @default(uuid())
+  race         Race    @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  raceId       String
+  basketNumber Int
+  capacity     Int
+  isRaceBasket Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  raceBasketItems RaceItem[] @relation("RaceBasketItems")
+  loftBasketItems RaceItem[] @relation("LoftBasketItems")
 }
 
-enum EntryStatus {
-  PENDING
-  PAID
-  CANCELLED
+model RaceItem {
+  id                   String             @id @default(uuid())
+  race                 Race               @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  raceId               String
+  eventInventoryItem   EventInventoryItem @relation(fields: [eventInventoryItemId], references: [id], onDelete: Cascade)
+  eventInventoryItemId String
+
+  loftBasketed Boolean @default(false)
+  loftBasket   Basket? @relation("LoftBasketItems", fields: [loftBasketId], references: [id], onDelete: SetNull)
+  loftBasketId String?
+
+  raceBasketed Boolean @default(false)
+  raceBasket   Basket? @relation("RaceBasketItems", fields: [raceBasketId], references: [id], onDelete: SetNull)
+  raceBasketId String?
+
+  raceBasketTime DateTime?
+
+  raceItemResult RaceItemResult?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RaceItemResult {
+  id           String   @id @default(uuid())
+  raceItem     RaceItem @relation(fields: [raceItemId], references: [id], onDelete: Cascade)
+  raceItemId   String   @unique
+  arrivalTime  DateTime
+  distance     Float
+  speed        Float
+  distanceUnit String   @default("MILES")
+  speedUnit    String   @default("MPH")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Payment {
-  id                  String        @id @default(uuid())
-  paypalTransactionId String        @unique
-  payerEmail          String
-  amount              Float
-  currency            String        @default("USD")
-  status              PaymentStatus
-  paymentTime         DateTime
-  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId              String
-  raceEntries         RaceEntry[]
-  createdAt           DateTime      @default(now())
-}
-
-enum PaymentStatus {
-  PENDING
-  SUCCESS
-  FAILED
-}
-
-model Session {
-  id             String   @id
-  expiresAt      DateTime
-  token          String
-  createdAt      DateTime
-  updatedAt      DateTime
-  ipAddress      String?
-  userAgent      String?
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  impersonatedBy String?
-
-  @@unique([token])
-  @@map("session")
-}
-
-model Account {
-  id                    String    @id
-  accountId             String
-  providerId            String
-  userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime
-  updatedAt             DateTime
-
-  @@map("account")
-}
-
-model Verification {
-  id         String    @id
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime?
-  updatedAt  DateTime?
-
-  @@map("verification")
+  id               String         @id @default(uuid())
+  paymentDate      DateTime?
+  paymentValue     Float
+  paymentMethod    String
+  paymentNote      String?
+  type             PaymentType
+  transactionId    String?        @unique
+  breeder          User           @relation(fields: [breederId], references: [id], onDelete: Cascade)
+  breederId        String
+  status           String         @default("PENDING")
+  eventInventory   EventInventory @relation(fields: [eventInventoryId], references: [id], onDelete: Cascade)
+  eventInventoryId String
 }

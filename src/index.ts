@@ -1,58 +1,61 @@
-import express from "express";
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
 import cors from "cors";
-import { toNodeHandler } from "better-auth/node";
-import { auth } from "./lib/auth";
-import type { Session, User } from "better-auth";
-import { adminRouter } from "./routes/adminRouter";
-import { userRouter } from "./routes/user.router";
-import { raceRouter } from "./routes/race.router";
-import fireBirdRouter from "./routes/firebird";
+import { env } from "./env";
+import type { ReqUser } from "./types/types";
+import apiRouter from "./routers/api.router";
+import cookieParser from "cookie-parser";
+import { sendError } from "./types/api-response";
+import { STATUS } from "./utils/statusCodes";
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = env.PORT || 4000;
+
 app.use(
   cors({
-    origin: [
-      process.env.FRONTEND_URL as string,
-      process.env.ADMIN_URL as string,
-    ],
+    origin: [env.BREEDER_DOMAIN, env.ADMIN_DOMAIN],
     credentials: true,
   })
 );
-app.all("/api/auth/*splat", toNodeHandler(auth));
-
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 app.use((req, res, next) => {
-  const timestamp = new Date().toISOString();
-  console.log(
-    `[${timestamp}] ${req.method} ${req.originalUrl} - IP: ${req.ip}`
-  );
+  //logging middleware
+  console.log(req.hostname);
+  console.log(`${req.method} ${req.originalUrl}`);
   next();
 });
 
-app.get("/", (req, res) => {
-  res.send("Welcome to the API");
+app.get("/", (req: Request, res: Response) => {
+  res.send("Hello World");
 });
-app.use("/api/admin", adminRouter);
-app.use("/api/user", userRouter);
-app.use("/api/race", raceRouter);
-app.use("/api/firebird", fireBirdRouter);
 
+app.use("/api", apiRouter);
+app.use((req: Request, res: Response) => {
+  res.status(404).send("API Endpoint not found");
+});
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof SyntaxError && "body" in err) {
+    return res.status(400).json({
+      message: "Invalid JSON format",
+      details: err.message,
+    });
+  }
+  console.log("Error occurred:", err);
+  sendError(res, "Internal Server Error", {}, STATUS.INTERNAL_SERVER_ERROR);
+});
 app.listen(PORT, () => {
-  console.log("Server is running on " + process.env.BETTER_AUTH_URL);
+  console.log(`Server is running on port ${PORT}`);
 });
 
 declare global {
   namespace Express {
     interface Request {
-      session?: Session;
-      user?: {
-        id: string;
-        email: string;
-        name?: string;
-        image?: string | null | undefined | undefined;
-        role: string;
-      } & User;
+      user?: ReqUser;
     }
   }
 }
