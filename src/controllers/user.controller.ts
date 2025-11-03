@@ -104,18 +104,32 @@ const getBreedersAddressBook = async (req: Request, res: Response) => {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
     return;
   }
-  const { q } = req.query;
+  const { q , eventId,status } = req.query;
 
   if (q && typeof q !== "string") {
     sendError(res, "Invalid query parameter", {}, STATUS.BAD_REQUEST);
+    return;
+  }
+  if(eventId && typeof eventId !== "string") {
+    sendError(res, "Invalid eventId parameter", {}, STATUS.BAD_REQUEST);
+    return;
+  }
+  if(status && typeof status !== "string") {
+    sendError(res, "Invalid status parameter", {}, STATUS.BAD_REQUEST);
+    return;
+  }
+  if(status && !["ACTIVE","INACTIVE","PROSPECT"].includes(status)) {
+    sendError(res, "Status must be either ACTIVE or INACTIVE", {}, STATUS.BAD_REQUEST);
     return;
   }
   try {
     const breeders = await prisma.user.findMany({
       where: {
         role: "BREEDER",
+        ...(status ? { status: status as "ACTIVE" | "INACTIVE" | "PROSPECT" } : {}),
         breederEvents: {
           some: {
+            ...(eventId ? { eventId: eventId } : {}),
             event: {
               creator: {
                 id: req.user.id,

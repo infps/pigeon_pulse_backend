@@ -3,6 +3,7 @@ import { sendError, sendSuccess } from "../types/api-response";
 import { STATUS } from "../utils/statusCodes";
 import validateSchema from "../utils/validators";
 import {
+  createBettingSchemaBody,
   createPrizeSchemaBody,
   feeSchemaCreate,
   idParamsSchema,
@@ -35,6 +36,247 @@ const createFeeSchema = async (req: Request, res: Response) => {
     sendError(
       res,
       "Failed to create fee schema",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+const createBettingSchema = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const validatedData = validateSchema(
+    req,
+    res,
+    "body",
+    createBettingSchemaBody
+  );
+  if (!validatedData) {
+    return;
+  }
+  try {
+    const bettingSchema = await prisma.bettingScheme.create({
+      data: {
+        name: validatedData.name,
+        createdById: req.user.id,
+        belgianShow1: validatedData.belgianShow1,
+        belgianShow2: validatedData.belgianShow2,
+        belgianShow3: validatedData.belgianShow3,
+        belgianShow4: validatedData.belgianShow4,
+        belgianShow5: validatedData.belgianShow5,
+        belgianShow6: validatedData.belgianShow6,
+        belgianShow7: validatedData.belgianShow7,
+        standardShow1: validatedData.standardShow1,
+        standardShow2: validatedData.standardShow2,
+        standardShow3: validatedData.standardShow3,
+        standardShow4: validatedData.standardShow4,
+        standardShow5: validatedData.standardShow5,
+        standardShow6: validatedData.standardShow6,
+        cut_percent: validatedData.cut_percent,
+        wta_1: validatedData.wta_1,
+        wta_2: validatedData.wta_2,
+        wta_3: validatedData.wta_3,
+        wta_4: validatedData.wta_4,
+        wta_5: validatedData.wta_5,
+        standardShowPercentages: {
+          createMany: {
+            data: validatedData.standardShowPercentages.map((item) => ({
+              position: item.position,
+              percentage: item.percentage,
+            })),
+          },
+        },
+      },
+    });
+    sendSuccess(
+      res,
+      bettingSchema,
+      "Betting schema created successfully",
+      STATUS.CREATED
+    );
+  } catch (error) {
+    console.error("Error creating betting schema:", error);
+    sendError(
+      res,
+      "Failed to create betting schema",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+const getBettingSchemas = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  try {
+    const bettingSchemas = await prisma.bettingScheme.findMany({
+      where: { createdById: req.user.id },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+    sendSuccess(
+      res,
+      bettingSchemas,
+      "Betting schemas retrieved successfully",
+      STATUS.OK
+    );
+  } catch (error) {
+    console.error("Error retrieving betting schemas:", error);
+    sendError(
+      res,
+      "Failed to retrieve betting schemas",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+const getBettingSchema = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const validatedParams = validateSchema(req, res, "params", idParamsSchema);
+  if (!validatedParams) {
+    return;
+  }
+  try {
+    const bettingSchema = await prisma.bettingScheme.findUnique({
+      where: { id: validatedParams.id, createdById: req.user.id },
+    });
+    if (!bettingSchema) {
+      sendError(res, "Betting schema not found", {}, STATUS.NOT_FOUND);
+      return;
+    }
+    sendSuccess(
+      res,
+      bettingSchema,
+      "Betting schema retrieved successfully",
+      STATUS.OK
+    );
+  } catch (error) {
+    console.error("Error retrieving betting schema:", error);
+    sendError(
+      res,
+      "Failed to retrieve betting schema",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+const deleteBettingSchema = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const validatedParams = validateSchema(req, res, "params", idParamsSchema);
+  if (!validatedParams) {
+    return;
+  }
+  try {
+    const bettingSchema = await prisma.bettingScheme.findUnique({
+      where: { id: validatedParams.id, createdById: req.user.id },
+      select: { id: true },
+    });
+    if (!bettingSchema) {
+      sendError(res, "Betting schema not found", {}, STATUS.NOT_FOUND);
+      return;
+    }
+    await prisma.bettingScheme.delete({
+      where: { id: validatedParams.id },
+    });
+    sendSuccess(res, {}, "Betting schema deleted successfully", STATUS.OK);
+  } catch (error) {
+    console.error("Error deleting betting schema:", error);
+    sendError(
+      res,
+      "Failed to delete betting schema",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+const updateBettingSchema = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const validatedParams = validateSchema(req, res, "params", idParamsSchema);
+  if (!validatedParams) {
+    return;
+  }
+  const validatedData = validateSchema(
+    req,
+    res,
+    "body",
+    createBettingSchemaBody
+  );
+  if (!validatedData) {
+    return;
+  }
+  try {
+    const bettingSchema = await prisma.bettingScheme.findUnique({
+      where: { id: validatedParams.id, createdById: req.user.id },
+      select: { id: true },
+    });
+    if (!bettingSchema) {
+      sendError(res, "Betting schema not found", {}, STATUS.NOT_FOUND);
+      return;
+    }
+    const updatedBettingSchema = await prisma.bettingScheme.update({
+      where: { id: validatedParams.id },
+      data: {
+        name: validatedData.name,
+        belgianShow1: validatedData.belgianShow1,
+        belgianShow2: validatedData.belgianShow2,
+        belgianShow3: validatedData.belgianShow3,
+        belgianShow4: validatedData.belgianShow4,
+        belgianShow5: validatedData.belgianShow5,
+        belgianShow6: validatedData.belgianShow6,
+        belgianShow7: validatedData.belgianShow7,
+        standardShow1: validatedData.standardShow1,
+        standardShow2: validatedData.standardShow2,
+        standardShow3: validatedData.standardShow3,
+        standardShow4: validatedData.standardShow4,
+        standardShow5: validatedData.standardShow5,
+        standardShow6: validatedData.standardShow6,
+        cut_percent: validatedData.cut_percent,
+        wta_1: validatedData.wta_1,
+        wta_2: validatedData.wta_2,
+        wta_3: validatedData.wta_3,
+        wta_4: validatedData.wta_4,
+        wta_5: validatedData.wta_5,
+        standardShowPercentages: {
+          deleteMany: {},
+          createMany: {
+            data: validatedData.standardShowPercentages.map((item) => ({
+              position: item.position,
+              percentage: item.percentage,
+            })),
+          },
+        },
+      },
+    });
+
+    sendSuccess(
+      res,
+      updatedBettingSchema,
+      "Betting schema updated successfully",
+      STATUS.OK
+    );
+  } catch (error) {
+    console.error("Error updating betting schema:", error);
+    sendError(
+      res,
+      "Failed to update betting schema",
       {},
       STATUS.INTERNAL_SERVER_ERROR
     );
@@ -423,6 +665,11 @@ const deletePrizeSchema = async (req: Request, res: Response) => {
 
 export {
   createFeeSchema,
+  createBettingSchema,
+  getBettingSchemas,
+  getBettingSchema,
+  deleteBettingSchema,
+  updateBettingSchema,
   getFeeSchemas,
   getFeeSchema,
   deleteFeeSchema,

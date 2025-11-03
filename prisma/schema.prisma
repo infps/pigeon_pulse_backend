@@ -82,6 +82,7 @@ model User {
 
   feeSchemasCreated   FeeSchema[]
   prizeSchemasCreated PrizeSchema[]
+  bettingSchemasCreated BettingScheme[]
   events              Event[]
 }
 
@@ -129,6 +130,44 @@ model PrizeDistribution {
   percentage    Float
 }
 
+model BettingScheme {
+  id            String @id @default(uuid())
+  name          String
+  cut_percent   Float?
+  belgianShow1  Float?
+  belgianShow2  Float?
+  belgianShow3  Float?
+  belgianShow4  Float?
+  belgianShow5  Float?
+  belgianShow6  Float?
+  belgianShow7  Float?
+  standardShow1 Float?
+  standardShow2 Float?
+  standardShow3 Float?
+  standardShow4 Float?
+  standardShow5 Float?
+  standardShow6 Float?
+  wta_1         Float?
+  wta_2         Float?
+  wta_3         Float?
+  wta_4         Float?
+  wta_5         Float?
+
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdById String
+  events     Event[]
+  standardShowPercentages StandardShowPercentage[]
+}
+
+
+model StandardShowPercentage {
+  id        String  @id @default(uuid())
+  position  Int
+  percentage Float
+  bettingScheme   BettingScheme @relation(fields: [bettingSchemeId], references: [id], onDelete: Cascade)
+  bettingSchemeId String
+}
+
 model Event {
   id             String      @id @default(uuid())
   status         EventStatus @default(OPEN)
@@ -151,6 +190,9 @@ model Event {
 
   feeSchema   FeeSchema @relation(fields: [feeSchemaId], references: [id], onDelete: Restrict)
   feeSchemaId String
+
+  bettingScheme   BettingScheme? @relation(fields: [bettingSchemeId], references: [id], onDelete: SetNull)
+  bettingSchemeId String?
 
   finalRacePrizeSchema   PrizeSchema? @relation("FinalRacePrize", fields: [finalRacePrizeSchemaId], references: [id], onDelete: SetNull)
   finalRacePrizeSchemaId String?

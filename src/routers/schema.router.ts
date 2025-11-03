@@ -10,6 +10,11 @@ import {
   getPrizeSchemas,
   updateFeeSchema,
   updatePrizeSchema,
+  createBettingSchema,
+  getBettingSchemas,
+  getBettingSchema,
+  updateBettingSchema,
+  deleteBettingSchema,
 } from "../controllers/schema.controller";
 import { requireRole } from "../middlewares/auth.middleware";
 
@@ -49,6 +54,24 @@ schemaRouter.delete(
   "/fees/:id",
   requireRole(["SUPER_ADMIN", "ADMIN"]),
   deleteFeeSchema
+);
+
+schemaRouter.get("/bettings", requireRole(["ADMIN"]), getBettingSchemas);
+schemaRouter.get("/bettings/:id", requireRole(["ADMIN"]), getBettingSchema);
+schemaRouter.post(
+  "/bettings",
+  requireRole(["SUPER_ADMIN", "ADMIN"]),
+  createBettingSchema
+);
+schemaRouter.put(
+  "/bettings/:id",
+  requireRole(["SUPER_ADMIN", "ADMIN"]),
+  updateBettingSchema
+);
+schemaRouter.delete(
+  "/bettings/:id",
+  requireRole(["SUPER_ADMIN", "ADMIN"]),
+  deleteBettingSchema
 );
 
 export default schemaRouter;

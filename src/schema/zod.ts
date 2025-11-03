@@ -36,6 +36,114 @@ const feeSchemaCreate = z.object({
   floatingBackup: z.boolean().default(false),
 });
 
+const createBettingSchemaBody = z.object({
+  name: z.string().min(1, "Betting name is required"),
+  cut_percent: z
+    .number()
+    .min(0, "Cut percent must be a non-negative number")
+    .max(100, "Cut percent cannot exceed 100"),
+  belgianShow1: z
+    .number()
+    .min(0, "Belgian Show 1 must be a non-negative number")
+    .max(100, "Belgian Show 1 cannot exceed 100")
+    .optional(),
+  belgianShow2: z
+    .number()
+    .min(0, "Belgian Show 2 must be a non-negative number")
+    .max(100, "Belgian Show 2 cannot exceed 100")
+    .optional(),
+  belgianShow3: z
+    .number()
+    .min(0, "Belgian Show 3 must be a non-negative number")
+    .max(100, "Belgian Show 3 cannot exceed 100")
+    .optional(),
+  belgianShow4: z
+    .number()
+    .min(0, "Belgian Show 4 must be a non-negative number")
+    .max(100, "Belgian Show 4 cannot exceed 100")
+    .optional(),
+  belgianShow5: z
+    .number()
+    .min(0, "Belgian Show 5 must be a non-negative number")
+    .max(100, "Belgian Show 5 cannot exceed 100")
+    .optional(),
+  belgianShow6: z
+    .number()
+    .min(0, "Belgian Show 6 must be a non-negative number")
+    .max(100, "Belgian Show 6 cannot exceed 100")
+    .optional(),
+  belgianShow7: z
+    .number()
+    .min(0, "Belgian Show 7 must be a non-negative number")
+    .max(100, "Belgian Show 7 cannot exceed 100")
+    .optional(),
+  standardShow1: z
+    .number()
+    .min(0, "Standard Show 1 must be a non-negative number")
+    .max(100, "Standard Show 1 cannot exceed 100")
+    .optional(),
+  standardShow2: z
+    .number()
+    .min(0, "Standard Show 2 must be a non-negative number")
+    .max(100, "Standard Show 2 cannot exceed 100")
+    .optional(),
+  standardShow3: z
+    .number()
+    .min(0, "Standard Show 3 must be a non-negative number")
+    .max(100, "Standard Show 3 cannot exceed 100")
+    .optional(),
+  standardShow4: z
+    .number()
+    .min(0, "Standard Show 4 must be a non-negative number")
+    .max(100, "Standard Show 4 cannot exceed 100")
+    .optional(),
+  standardShow5: z
+    .number()
+    .min(0, "Standard Show 5 must be a non-negative number")
+    .max(100, "Standard Show 5 cannot exceed 100")
+    .optional(),
+  standardShow6: z
+    .number()
+    .min(0, "Standard Show 6 must be a non-negative number")
+    .max(100, "Standard Show 6 cannot exceed 100")
+    .optional(),
+  wta_1: z
+    .number()
+    .min(0, "WTA 1 must be a non-negative number")
+    .max(100, "WTA 1 cannot exceed 100")
+    .optional(),
+  wta_2: z
+    .number()
+    .min(0, "WTA 2 must be a non-negative number")
+    .max(100, "WTA 2 cannot exceed 100")
+    .optional(),
+  wta_3: z
+    .number()
+    .min(0, "WTA 3 must be a non-negative number")
+    .max(100, "WTA 3 cannot exceed 100")
+    .optional(),
+  wta_4: z
+    .number()
+    .min(0, "WTA 4 must be a non-negative number")
+    .max(100, "WTA 4 cannot exceed 100")
+    .optional(),
+  wta_5: z
+    .number()
+    .min(0, "WTA 5 must be a non-negative number")
+    .max(100, "WTA 5 cannot exceed 100")
+    .optional(),
+
+  standardShowPercentages: z.array(
+    z.object({
+      position: z.number().int().min(1, "Position must be at least 1"),
+      percentage: z
+        .number()
+        .min(0, "Percentage must be a non-negative number")
+        .max(100, "Percentage cannot exceed 100"),
+    })
+  ),
+});
+
 const createPrizeSchemaBody = z.object({
   name: z.string().min(1, "Prize name is required"),
   distributions: z.array(
@@ -202,6 +310,7 @@ export {
   idParamsSchema,
   createPrizeSchemaBody,
   createEventSchemaBody,
+  createBettingSchemaBody,
   paginationSchema,
   updateUserSchema,
   updateBirdSchema,
