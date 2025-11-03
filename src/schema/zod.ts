@@ -194,6 +194,7 @@ const createEventSchemaBody = z.object({
   hotspot2PrizeSchemaId: z.uuid("Invalid prize schema ID format"),
   hotspot3PrizeSchemaId: z.uuid("Invalid prize schema ID format"),
   avgWinnerPrizeSchemaId: z.uuid("Invalid prize schema ID format"),
+  bettingSchemaId: z.uuid("Invalid betting schema ID format").optional(),
 });
 
 const paginationSchema = z.object({
