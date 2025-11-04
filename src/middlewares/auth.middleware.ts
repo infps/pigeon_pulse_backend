@@ -15,18 +15,48 @@ export const requireRole = (allowedRoles: Role[]) => {
     }
     try {
       const decoded: JWTPayload = verifyToken(token);
-      if (!decoded || !decoded.role || !allowedRoles.includes(decoded.role)) {
+      if (!decoded || !decoded.userId) {
         return sendError(res, "Forbidden", {}, STATUS.FORBIDDEN);
       }
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        select: { id: true, role: true, email: true, name: true, status: true },
-      });
-      if (
-        !user ||
-        !allowedRoles.includes(user.role) ||
-        user.status !== "ACTIVE"
+      let user;
+      if (allowedRoles.length === 1 && allowedRoles[0] === "BREEDER") {
+        user = await prisma.user.findUnique({
+          where: { id: decoded.userId },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            status: true,
+          },
+        });
+      } else if (
+        allowedRoles.length === 1 &&
+        (allowedRoles[0] === "ADMIN" || allowedRoles[0] === "SUPER_ADMIN")
       ) {
+        user = await prisma.organizerData.findUnique({
+          where: { id: decoded.userId },
+          select: { id: true, email: true, firstName: true,lastName: true,status: true },
+        });
+      } else {
+        user = await prisma.user.findUnique({
+          where: { id: decoded.userId },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            status: true,
+          },
+        });
+        if (!user) {
+          user = await prisma.organizerData.findUnique({
+            where: { id: decoded.userId },
+            select: { id: true, email: true, firstName: true, lastName: true, status: true },
+          });
+        }
+      }
+      if (!user || user.status !== "ACTIVE") {
         return sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
       }
       req.user = user;

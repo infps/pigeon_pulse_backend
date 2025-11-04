@@ -1,47 +1,61 @@
 import { z } from "zod";
 
 const userSignupSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email address"),
+  firstName: z.string().min(1, "First Name is required"),
+  lastName: z.string().min(1, "Last Name is required"),
+  email: z.email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters long"),
 });
 
 const userLoginSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters long"),
+});
+
+const organizerSignupSchema = z.object({
+  firstName: z.string().min(1, "Name is required"),
+  lastName: z.string().min(1, "Name is required"),
+  email: z.email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters long"),
+});
+
+const organizerLoginSchema = z.object({
+  email: z.email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters long"),
 });
 
 const feeSchemaCreate = z.object({
   name: z.string().min(1, "Fee name is required"),
   entryFee: z.number().min(0, "Entry fee must be a non-negative number"),
-  perchFee: z.number().min(0, "Perch fee must be a non-negative number"),
-  expensePercentage: z
+  isRefundable: z.boolean().default(false),
+  minEntryFees: z
     .number()
-    .min(0, "Expense percentage must be a non-negative number")
-    .max(100, "Expense percentage cannot exceed 100"),
-  minEntryFee: z
     .int()
-    .min(0, "Minimum entry fee must be a non-negative integer"),
-  entryFeeRefundable: z.boolean().default(false),
-  hs1Fee: z.number().min(0, "HS1 fee must be a non-negative number"),
-  hs2Fee: z.number().min(0, "HS2 fee must be a non-negative number"),
-  hs3Fee: z.number().min(0, "HS3 fee must be a non-negative number"),
-  finalRaceFee: z
+    .min(0, "Minimum entry fees must be a non-negative integer"),
+  maxBirdCount: z.number().int().min(0, "Maximum number of birds must be at least 0"),
+  maxBackupBirdCount: z
     .number()
-    .min(0, "Final race fee must be a non-negative number"),
-  maxBirds: z.int().min(0, "Maximum number of birds must be at least 0"),
-  maxBackupBirds: z
     .int()
     .min(0, "Maximum number of backup birds must be at least 0"),
-  floatingBackup: z.boolean().default(false),
+  isFloatingBackup: z.boolean().default(false),
+  feesCutPercent: z
+    .number()
+    .min(0, "Fees cut percent must be a non-negative number")
+    .max(100, "Fees cut percent cannot exceed 100"),
+  hotSpot1Fee: z.number().min(0, "Hot spot 1 fee must be a non-negative number"),
+  hotSpot2Fee: z.number().min(0, "Hot spot 2 fee must be a non-negative number"),
+  hotSpot3Fee: z.number().min(0, "Hot spot 3 fee must be a non-negative number"),
+  hotSpotFinalFee: z
+    .number()
+    .min(0, "Hot spot final fee must be a non-negative number"),
 });
 
 const createBettingSchemaBody = z.object({
   name: z.string().min(1, "Betting name is required"),
-  cut_percent: z
+  bettingCutPercent: z
     .number()
-    .min(0, "Cut percent must be a non-negative number")
-    .max(100, "Cut percent cannot exceed 100"),
+    .min(0, "Betting cut percent must be a non-negative number")
+    .max(100, "Betting cut percent cannot exceed 100"),
   belgianShow1: z
     .number()
     .min(0, "Belgian Show 1 must be a non-negative number")
@@ -107,27 +121,27 @@ const createBettingSchemaBody = z.object({
     .min(0, "Standard Show 6 must be a non-negative number")
     .max(100, "Standard Show 6 cannot exceed 100")
     .optional(),
-  wta_1: z
+  wta1: z
     .number()
     .min(0, "WTA 1 must be a non-negative number")
     .max(100, "WTA 1 cannot exceed 100")
     .optional(),
-  wta_2: z
+  wta2: z
     .number()
     .min(0, "WTA 2 must be a non-negative number")
     .max(100, "WTA 2 cannot exceed 100")
     .optional(),
-  wta_3: z
+  wta3: z
     .number()
     .min(0, "WTA 3 must be a non-negative number")
     .max(100, "WTA 3 cannot exceed 100")
     .optional(),
-  wta_4: z
+  wta4: z
     .number()
     .min(0, "WTA 4 must be a non-negative number")
     .max(100, "WTA 4 cannot exceed 100")
     .optional(),
-  wta_5: z
+  wta5: z
     .number()
     .min(0, "WTA 5 must be a non-negative number")
     .max(100, "WTA 5 cannot exceed 100")
@@ -135,11 +149,11 @@ const createBettingSchemaBody = z.object({
 
   standardShowPercentages: z.array(
     z.object({
-      position: z.number().int().min(1, "Position must be at least 1"),
-      percentage: z
+      place: z.number().int().min(1, "Place must be at least 1"),
+      percValue: z
         .number()
-        .min(0, "Percentage must be a non-negative number")
-        .max(100, "Percentage cannot exceed 100"),
+        .min(0, "Percentage value must be a non-negative number")
+        .max(100, "Percentage value cannot exceed 100"),
     })
   ),
 });
@@ -150,10 +164,10 @@ const createPrizeSchemaBody = z.object({
     z.object({
       fromPosition: z.number().int().min(1, "From position must be at least 1"),
       toPosition: z.number().int().min(1, "To position must be at least 1"),
-      percentage: z
+      prizeValue: z
         .number()
-        .min(0, "Percentage must be a non-negative number")
-        .max(100, "Percentage cannot exceed 100"),
+        .min(0, "Prize value must be a non-negative number")
+        .max(100, "Prize value cannot exceed 100"),
     })
   ),
 });
@@ -312,6 +326,8 @@ export {
   createPrizeSchemaBody,
   createEventSchemaBody,
   createBettingSchemaBody,
+  organizerSignupSchema,
+  organizerLoginSchema,
   paginationSchema,
   updateUserSchema,
   updateBirdSchema,

@@ -1,13 +1,12 @@
 type JWTPayload = {
   userId: string;
-  role: Role;
 };
 
 type ReqUser = {
   id: string;
-  name: string | null;
+  firstName: string | null;
+  lastName: string | null;
   email: string;
-  role: Role;
   status: "ACTIVE" | "INACTIVE" | "PROSPECT";
 };
 

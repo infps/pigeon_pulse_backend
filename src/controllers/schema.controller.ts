@@ -59,8 +59,9 @@ const createBettingSchema = async (req: Request, res: Response) => {
   try {
     const bettingSchema = await prisma.bettingScheme.create({
       data: {
-        name: validatedData.name,
         createdById: req.user.id,
+        name: validatedData.name,
+        bettingCutPercent: validatedData.bettingCutPercent,
         belgianShow1: validatedData.belgianShow1,
         belgianShow2: validatedData.belgianShow2,
         belgianShow3: validatedData.belgianShow3,
@@ -74,17 +75,16 @@ const createBettingSchema = async (req: Request, res: Response) => {
         standardShow4: validatedData.standardShow4,
         standardShow5: validatedData.standardShow5,
         standardShow6: validatedData.standardShow6,
-        cut_percent: validatedData.cut_percent,
-        wta_1: validatedData.wta_1,
-        wta_2: validatedData.wta_2,
-        wta_3: validatedData.wta_3,
-        wta_4: validatedData.wta_4,
-        wta_5: validatedData.wta_5,
+        wta1: validatedData.wta1,
+        wta2: validatedData.wta2,
+        wta3: validatedData.wta3,
+        wta4: validatedData.wta4,
+        wta5: validatedData.wta5,
         standardShowPercentages: {
           createMany: {
             data: validatedData.standardShowPercentages.map((item) => ({
-              position: item.position,
-              percentage: item.percentage,
+              place: item.place,
+              percValue: item.percValue,
             })),
           },
         },
@@ -114,7 +114,6 @@ const getBettingSchemas = async (req: Request, res: Response) => {
   }
   try {
     const bettingSchemas = await prisma.bettingScheme.findMany({
-      where: { createdById: req.user.id },
       select: {
         id: true,
         name: true,
@@ -148,7 +147,7 @@ const getBettingSchema = async (req: Request, res: Response) => {
   }
   try {
     const bettingSchema = await prisma.bettingScheme.findUnique({
-      where: { id: validatedParams.id, createdById: req.user.id },
+      where: { id: validatedParams.id },
     });
     if (!bettingSchema) {
       sendError(res, "Betting schema not found", {}, STATUS.NOT_FOUND);
@@ -182,7 +181,7 @@ const deleteBettingSchema = async (req: Request, res: Response) => {
   }
   try {
     const bettingSchema = await prisma.bettingScheme.findUnique({
-      where: { id: validatedParams.id, createdById: req.user.id },
+      where: { id: validatedParams.id },
       select: { id: true },
     });
     if (!bettingSchema) {
@@ -224,7 +223,7 @@ const updateBettingSchema = async (req: Request, res: Response) => {
   }
   try {
     const bettingSchema = await prisma.bettingScheme.findUnique({
-      where: { id: validatedParams.id, createdById: req.user.id },
+      where: { id: validatedParams.id },
       select: { id: true },
     });
     if (!bettingSchema) {
@@ -235,6 +234,7 @@ const updateBettingSchema = async (req: Request, res: Response) => {
       where: { id: validatedParams.id },
       data: {
         name: validatedData.name,
+        bettingCutPercent: validatedData.bettingCutPercent,
         belgianShow1: validatedData.belgianShow1,
         belgianShow2: validatedData.belgianShow2,
         belgianShow3: validatedData.belgianShow3,
@@ -248,18 +248,17 @@ const updateBettingSchema = async (req: Request, res: Response) => {
         standardShow4: validatedData.standardShow4,
         standardShow5: validatedData.standardShow5,
         standardShow6: validatedData.standardShow6,
-        cut_percent: validatedData.cut_percent,
-        wta_1: validatedData.wta_1,
-        wta_2: validatedData.wta_2,
-        wta_3: validatedData.wta_3,
-        wta_4: validatedData.wta_4,
-        wta_5: validatedData.wta_5,
+        wta1: validatedData.wta1,
+        wta2: validatedData.wta2,
+        wta3: validatedData.wta3,
+        wta4: validatedData.wta4,
+        wta5: validatedData.wta5,
         standardShowPercentages: {
           deleteMany: {},
           createMany: {
             data: validatedData.standardShowPercentages.map((item) => ({
-              position: item.position,
-              percentage: item.percentage,
+              place: item.place,
+              percValue: item.percValue,
             })),
           },
         },
@@ -417,7 +416,9 @@ const updateFeeSchema = async (req: Request, res: Response) => {
     }
     const updatedFeeSchema = await prisma.feeSchema.update({
       where: { id: validatedParams.id },
-      data: validatedData,
+      data: {
+        ...validatedData,
+      },
     });
     sendSuccess(
       res,
@@ -455,7 +456,7 @@ const createPrizeSchema = async (req: Request, res: Response) => {
             data: validatedData.distributions.map((distribution) => ({
               fromPosition: distribution.fromPosition,
               toPosition: distribution.toPosition,
-              percentage: distribution.percentage,
+              prizeValue: distribution.prizeValue,
             })),
           },
         },
@@ -527,7 +528,7 @@ const getPrizeSchema = async (req: Request, res: Response) => {
           select: {
             fromPosition: true,
             toPosition: true,
-            percentage: true,
+            prizeValue: true,
           },
         },
       },
@@ -586,7 +587,7 @@ const updatePrizeSchema = async (req: Request, res: Response) => {
             data: validatedData.distributions.map((distribution) => ({
               fromPosition: distribution.fromPosition,
               toPosition: distribution.toPosition,
-              percentage: distribution.percentage,
+              prizeValue: distribution.prizeValue,
             })),
           },
         },
