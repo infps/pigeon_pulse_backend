@@ -1,23 +1,25 @@
 import { Router } from "express";
 import { requireRole } from "../middlewares/auth.middleware";
 import {
+  getAdminProfile,
+  getBreederProfile,
   getBreedersAddressBook,
   getBreedersByEvent,
-  getProfile,
-  updateProfile,
+  updateBreederProfile,
 } from "../controllers/user.controller";
 
 const userRouter = Router();
 
 userRouter.get(
-  "/profile",
-  requireRole(["BREEDER", "ADMIN", "SUPER_ADMIN"]),
-  getProfile
+  "/admin/profile",
+  requireRole(["ADMIN", "SUPER_ADMIN"]),
+  getAdminProfile
 );
+userRouter.get("/breeder/profile", requireRole(["BREEDER"]), getBreederProfile);
 userRouter.put(
-  "/profile",
-  requireRole(["BREEDER", "ADMIN", "SUPER_ADMIN"]),
-  updateProfile
+  "/breeder/profile",
+  requireRole(["BREEDER"]),
+  updateBreederProfile
 );
 
 userRouter.get(

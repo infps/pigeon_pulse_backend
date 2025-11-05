@@ -552,6 +552,12 @@ model AvgWinnerPrizes {
 // PAYMENT MODELS
 // ============================================
 
+enum PaymentStatus {
+    PENDING
+    COMPLETED
+    FAILED
+}
+
 model Payment {
     id               String        @id @default(uuid())
     type             PaymentType
@@ -572,6 +578,7 @@ model Payment {
     breeder          User           @relation(fields: [breederId], references: [id], onDelete: Cascade)
     breederId        String
 
+    status           PaymentStatus?
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 

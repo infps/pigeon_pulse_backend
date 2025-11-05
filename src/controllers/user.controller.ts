@@ -4,7 +4,7 @@ import { STATUS } from "../utils/statusCodes";
 import { prisma } from "../lib/prisma";
 import validateSchema from "../utils/validators";
 import { updateUserSchema } from "../schema/zod";
-const getProfile = async (req: Request, res: Response) => {
+const getBreederProfile = async (req: Request, res: Response) => {
   if (!req.user) {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
     return;
@@ -17,7 +17,6 @@ const getProfile = async (req: Request, res: Response) => {
         createdAt: true,
         updatedAt: true,
         status: true,
-        role: true,
       },
     });
     if (!user) {
@@ -36,7 +35,38 @@ const getProfile = async (req: Request, res: Response) => {
   }
 };
 
-const updateProfile = async (req: Request, res: Response) => {
+const getAdminProfile = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  try {
+    const user = await prisma.organizerData.findUnique({
+      where: { id: req.user.id },
+      omit: {
+        password: true,
+        createdAt: true,
+        updatedAt: true,
+        status: true,
+      },
+    });
+    if (!user) {
+      sendError(res, "User not found", {}, STATUS.NOT_FOUND);
+      return;
+    }
+    sendSuccess(res, user, "Profile retrieved successfully", STATUS.OK);
+  } catch (error) {
+    console.error("Error retrieving user profile:", error);
+    sendError(
+      res,
+      "Failed to retrieve user profile",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+const updateBreederProfile = async (req: Request, res: Response) => {
   if (!req.user) {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
     return;
@@ -67,7 +97,7 @@ const updateProfile = async (req: Request, res: Response) => {
 };
 
 const getBreedersByEvent = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "ADMIN") {
+  if (!req.user) {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -75,16 +105,11 @@ const getBreedersByEvent = async (req: Request, res: Response) => {
   try {
     const breeders = await prisma.user.findMany({
       where: {
-        breederEvents: {
-          some: {
-            eventId: eventId,
-          },
-        },
-      },
-      select: {
-        name: true,
-        id: true,
-        email: true,
+        eventInventories:{
+          every:{
+            eventId: eventId
+          }
+        }
       },
     });
     sendSuccess(res, breeders, "Breeders retrieved successfully", STATUS.OK);
@@ -100,7 +125,7 @@ const getBreedersByEvent = async (req: Request, res: Response) => {
 };
 
 const getBreedersAddressBook = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "ADMIN") {
+  if (!req.user) {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -125,21 +150,37 @@ const getBreedersAddressBook = async (req: Request, res: Response) => {
   try {
     const breeders = await prisma.user.findMany({
       where: {
-        role: "BREEDER",
         ...(status ? { status: status as "ACTIVE" | "INACTIVE" | "PROSPECT" } : {}),
-        breederEvents: {
-          some: {
-            ...(eventId ? { eventId: eventId } : {}),
-            event: {
-              creator: {
-                id: req.user.id,
+        ...(eventId
+          ? {
+              eventInventories: {
+                some: {
+                  eventId: eventId,
+                },
               },
-            },
-          },
-        },
+            }
+          : {}),
         OR: [
           {
-            name: {
+            firstName: {
+              contains: q || "",
+              mode: "insensitive",
+            },
+          },
+          {
+            lastName: {
+              contains: q || "",
+              mode: "insensitive",
+            },
+          },
+          {
+            phone: {
+              contains: q || "",
+              mode: "insensitive",
+            },
+          },
+          {
+            address1: {
               contains: q || "",
               mode: "insensitive",
             },
@@ -174,8 +215,9 @@ const getBreedersAddressBook = async (req: Request, res: Response) => {
 };
 
 export {
-  getProfile,
-  updateProfile,
+  getBreederProfile,
+  updateBreederProfile,
+  getAdminProfile,
   getBreedersByEvent,
   getBreedersAddressBook,
 };

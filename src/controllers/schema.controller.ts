@@ -23,6 +23,14 @@ const createFeeSchema = async (req: Request, res: Response) => {
       data: {
         ...validatedData,
         createdById: req.user.id,
+        perchFeeItems:{
+          createMany:{
+            data: validatedData.perchFees.map((item) => ({
+              birdNo: item.birdNo,
+              perchFee: item.perchFee,
+            })),
+          },
+        }
       },
     });
     sendSuccess(

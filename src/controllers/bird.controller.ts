@@ -10,7 +10,7 @@ import {
   updateBirdSchema,
 } from "../schema/zod";
 const getMyBirds = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "BREEDER") {
+  if (!req.user) {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -35,7 +35,7 @@ const getMyBirds = async (req: Request, res: Response) => {
 };
 
 const updateBird = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "BREEDER") {
+  if (!req.user) {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -59,9 +59,7 @@ const updateBird = async (req: Request, res: Response) => {
       where: {
         id: params.id,
       },
-      data: {
-        
-      },
+      data: {},
     });
     sendSuccess(res, updatedBird, "Bird updated successfully", STATUS.OK);
     return;
@@ -72,7 +70,7 @@ const updateBird = async (req: Request, res: Response) => {
 };
 
 const addBird = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "BREEDER") {
+  if (!req.user) {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -121,7 +119,8 @@ const getBirdsPerEvent = async (req: Request, res: Response) => {
             breeder: {
               select: {
                 id: true,
-                name: true,
+                firstName: true,
+                lastName: true,
               },
             },
           },

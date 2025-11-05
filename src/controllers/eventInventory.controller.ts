@@ -25,11 +25,13 @@ const createEventInventory = async (req: Request, res: Response) => {
         id: true,
         feeSchema: {
           select: {
-            perchFee: true,
+            maxBackupBirdCount: true,
+            maxBirdCount: true,
             entryFee: true,
-            hs1Fee: true,
-            hs2Fee: true,
-            hs3Fee: true,
+            hotSpot1Fee: true,
+            hotSpot2Fee: true,
+            hotSpot3Fee: true,
+            perchFeeItems: true,
           },
         },
       },
@@ -44,9 +46,24 @@ const createEventInventory = async (req: Request, res: Response) => {
       sendError(res, "Internal server error", {}, STATUS.INTERNAL_SERVER_ERROR);
       return;
     }
-    const totalAmount = (
-      validatedData.birds.length * (doesEventExist.feeSchema.perchFee ?? 0)
-    ).toFixed(2);
+    if (
+      validatedData.birds.length >
+      doesEventExist.feeSchema.maxBirdCount +
+        doesEventExist.feeSchema.maxBackupBirdCount
+    ) {
+      sendError(
+        res,
+        "Number of birds exceeds allowed limit",
+        {},
+        STATUS.BAD_REQUEST
+      );
+    }
+
+    let totalAmount = 0;
+    for (let i = 1; i <= validatedData.birds.length; i++) {
+      totalAmount +=
+        doesEventExist.feeSchema.perchFeeItems[i - 1]?.perchFee || 0;
+    }
 
     const birds = await prisma.bird.findMany({
       where: {
@@ -75,11 +92,14 @@ const createEventInventory = async (req: Request, res: Response) => {
           intent: "CAPTURE",
           purchase_units: [
             {
-              items: birds.map((bird) => ({
+              items: birds.map((bird, index) => ({
                 name: bird.birdName,
                 unit_amount: {
                   currency_code: "USD",
-                  value: (doesEventExist.feeSchema?.perchFee ?? 0).toFixed(2),
+                  value: (
+                    doesEventExist.feeSchema?.perchFeeItems[index]?.perchFee ??
+                    0
+                  ).toFixed(2),
                 },
                 quantity: "1",
               })),
@@ -107,13 +127,18 @@ const createEventInventory = async (req: Request, res: Response) => {
       const inventory = await tx.eventInventory.create({
         data: {
           loft: "Main Loft",
-          reserved_birds: validatedData.birds.length,
+          reservedBirds: validatedData.birds.length,
           breederId: breeder.id,
           eventId: validatedData.eventId,
           eventInventoryItems: {
             create: validatedData.birds.map((bird) => ({
               birdId: bird,
               eventId: validatedData.eventId,
+              perchFeeValue: doesEventExist.feeSchema.perchFeeItems.find(
+                (item, index) => index === validatedData.birds.indexOf(bird)
+              )?.perchFee,
+              entryFeeValue: doesEventExist.feeSchema.entryFee,
+              hotSpotFeeValue: doesEventExist.feeSchema.hotSpot1Fee,
             })),
           },
         },
@@ -123,8 +148,8 @@ const createEventInventory = async (req: Request, res: Response) => {
         data: {
           paymentDate: new Date(),
           type: "PERCH_FEE",
-          paymentMethod: "PAYPAL",
-          paymentValue: parseFloat(totalAmount),
+          paymentMethod: "BANK_TRANSFER",
+          paymentValue: totalAmount,
           transactionId: orderData.id,
           status: "PENDING",
           breederId: breeder.id,
@@ -135,19 +160,19 @@ const createEventInventory = async (req: Request, res: Response) => {
       // Create due payment entries for other fees
       const feeTypes = [
         { type: "ENTRY_FEE", amount: doesEventExist.feeSchema.entryFee },
-        { type: "HOTSPOT_FEE_1", amount: doesEventExist.feeSchema.hs1Fee },
-        { type: "HOTSPOT_FEE_2", amount: doesEventExist.feeSchema.hs2Fee },
-        { type: "HOTSPOT_FEE_3", amount: doesEventExist.feeSchema.hs3Fee },
+        { type: "HOTSPOT_FEE_1", amount: doesEventExist.feeSchema.hotSpot1Fee },
+        { type: "HOTSPOT_FEE_2", amount: doesEventExist.feeSchema.hotSpot2Fee },
+        { type: "HOTSPOT_FEE_3", amount: doesEventExist.feeSchema.hotSpot3Fee },
       ];
 
       for (const feeType of feeTypes) {
         if (feeType.amount && feeType.amount > 0) {
           await tx.payment.create({
             data: {
+              paymentMethod: "BANK_TRANSFER",
               type: feeType.type as any,
-              paymentMethod: "PAYPAL",
               paymentValue: feeType.amount,
-              status: "DUE",
+              status: "PENDING",
               breederId: breeder.id,
               eventInventoryId: inventory.id,
             },
@@ -173,7 +198,7 @@ const createEventInventory = async (req: Request, res: Response) => {
 };
 
 const getMYEvents = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "BREEDER") {
+  if (!req.user) {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -191,10 +216,10 @@ const getMYEvents = async (req: Request, res: Response) => {
             date: true,
           },
         },
-        reserved_birds: true,
+        reservedBirds: true,
         loft: true,
 
-        registration_date: true,
+        createdAt: true,
       },
     });
     sendSuccess(res, events, "My events retrieved successfully", STATUS.OK);
@@ -210,7 +235,7 @@ const getMYEvents = async (req: Request, res: Response) => {
 };
 
 const listEventInventory = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "ADMIN") {
+  if (!req.user) {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -236,15 +261,15 @@ const listEventInventory = async (req: Request, res: Response) => {
       },
       select: {
         id: true,
-        registration_date: true,
-        reserved_birds: true,
-        isPaid: true,
+        createdAt: true,
+        reservedBirds: true,
         loft: true,
         breeder: {
           select: {
             id: true,
-            name: true,
-            state: true,
+            firstName: true,
+            lastName: true,
+            state1: true,
           },
         },
         payments: {
@@ -275,7 +300,7 @@ const listEventInventory = async (req: Request, res: Response) => {
 };
 
 const getEventInventoryDetails = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "ADMIN") {
+  if (!req.user) {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -288,7 +313,8 @@ const getEventInventoryDetails = async (req: Request, res: Response) => {
       select: {
         breeder: {
           select: {
-            name: true,
+            firstName: true,
+            lastName: true,
           },
         },
         event: {
@@ -305,15 +331,16 @@ const getEventInventoryDetails = async (req: Request, res: Response) => {
                 breeder: {
                   select: {
                     id: true,
-                    name: true,
+                    firstName: true,
+                    lastName: true,
                   },
                 },
               },
             },
           },
         },
-        registration_date: true,
-        reserved_birds: true,
+        createdAt: true,
+        reservedBirds: true,
         loft: true,
       },
     });
@@ -339,7 +366,7 @@ const getEventInventoryDetails = async (req: Request, res: Response) => {
 };
 
 const updateEventInventoryItem = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "ADMIN") {
+  if (!req.user) {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -369,21 +396,21 @@ const updateEventInventoryItem = async (req: Request, res: Response) => {
       data: {
         arrivalDate: validatedData.arrivalDate,
         departureDate: validatedData.departureDate,
-        rfId: validatedData.rfId,
-        band_1: validatedData.band_1,
-        band_2: validatedData.band_2,
-        band_3: validatedData.band_3,
-        band_4: validatedData.band_4,
-        band: `${validatedData.band_1}-${validatedData.band_2}-${validatedData.band_3}-${validatedData.band_4}`,
-        note: validatedData.note,
+
         bird: {
           update: {
+            note: validatedData.note,
             sex: validatedData.sex,
             color: validatedData.color,
             birdName: validatedData.birdName,
-            is_lost: validatedData.is_lost,
-            lost_date: validatedData.lost_date,
-            is_active: validatedData.is_active,
+            isLost: validatedData.is_lost,
+            lostDate: validatedData.lost_date,
+            isActive: validatedData.is_active,
+            band1: validatedData.band_1,
+            band2: validatedData.band_2,
+            band3: validatedData.band_3,
+            band4: validatedData.band_4,
+            band: `${validatedData.band_1}-${validatedData.band_2}-${validatedData.band_3}-${validatedData.band_4}`,
           },
         },
       },

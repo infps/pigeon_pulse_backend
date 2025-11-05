@@ -24,40 +24,53 @@ const organizerLoginSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters long"),
 });
 
-const feeSchemaCreate = z.object({
-  name: z.string().min(1, "Fee name is required"),
-  entryFee: z.number().min(0, "Entry fee must be a non-negative number"),
-  isRefundable: z.boolean().default(false),
-  minEntryFees: z
-    .number()
-    .int()
-    .min(0, "Minimum entry fees must be a non-negative integer"),
-  maxBirdCount: z
-    .number()
-    .int()
-    .min(0, "Maximum number of birds must be at least 0"),
-  maxBackupBirdCount: z
-    .number()
-    .int()
-    .min(0, "Maximum number of backup birds must be at least 0"),
-  isFloatingBackup: z.boolean().default(false),
-  feesCutPercent: z
-    .number()
-    .min(0, "Fees cut percent must be a non-negative number")
-    .max(100, "Fees cut percent cannot exceed 100"),
-  hotSpot1Fee: z
-    .number()
-    .min(0, "Hot spot 1 fee must be a non-negative number"),
-  hotSpot2Fee: z
-    .number()
-    .min(0, "Hot spot 2 fee must be a non-negative number"),
-  hotSpot3Fee: z
-    .number()
-    .min(0, "Hot spot 3 fee must be a non-negative number"),
-  hotSpotFinalFee: z
-    .number()
-    .min(0, "Hot spot final fee must be a non-negative number"),
-});
+const feeSchemaCreate = z
+  .object({
+    name: z.string().min(1, "Fee name is required"),
+    entryFee: z.number().min(0, "Entry fee must be a non-negative number"),
+    isRefundable: z.boolean().default(false),
+    minEntryFees: z
+      .number()
+      .int()
+      .min(0, "Minimum entry fees must be a non-negative integer"),
+    maxBirdCount: z
+      .number()
+      .int()
+      .min(0, "Maximum number of birds must be at least 0"),
+    maxBackupBirdCount: z
+      .number()
+      .int()
+      .min(0, "Maximum number of backup birds must be at least 0"),
+    isFloatingBackup: z.boolean().default(false),
+    feesCutPercent: z
+      .number()
+      .min(0, "Fees cut percent must be a non-negative number")
+      .max(100, "Fees cut percent cannot exceed 100"),
+    hotSpot1Fee: z
+      .number()
+      .min(0, "Hot spot 1 fee must be a non-negative number"),
+    hotSpot2Fee: z
+      .number()
+      .min(0, "Hot spot 2 fee must be a non-negative number"),
+    hotSpot3Fee: z
+      .number()
+      .min(0, "Hot spot 3 fee must be a non-negative number"),
+    hotSpotFinalFee: z
+      .number()
+      .min(0, "Hot spot final fee must be a non-negative number"),
+    perchFees: z.array(
+      z.object({
+        birdNo: z.number().int().min(1, "Bird number must be at least 1"),
+        perchFee: z
+          .number()
+          .min(0, "Perch fee must be a non-negative number"),
+      })
+    ),
+  })
+  .refine((data) => data.perchFees.length === data.maxBirdCount, {
+    message: "Perch fees length must match max bird count",
+    path: ["perchFees"], // points the error to perchFees
+  });
 
 const createBettingSchemaBody = z.object({
   name: z.string().min(1, "Betting name is required"),
@@ -244,23 +257,25 @@ const paginationSchema = z.object({
 });
 
 const updateUserSchema = z.object({
-  name: z.string().min(1, "Name is required").optional(),
+  firstName: z.string().min(1, "First Name is required").optional(),
+  lastName: z.string().min(1, "Last Name is required").optional(),
   country: z.string().min(1, "Country is required").optional(),
-  ssn: z.string().min(1, "SSN is required").optional(),
-  taxNumber: z.string().min(1, "Tax number is required").optional(),
-  address: z.string().min(1, "Address is required").optional(),
-  city: z.string().min(1, "City is required").optional(),
-  state: z.string().min(1, "State is required").optional(),
-  zip: z.string().min(1, "ZIP code is required").optional(),
-  primaryPhone: z.string().min(1, "Primary phone is required").optional(),
-  cellPhone: z.string().min(1, "Cell phone is required").optional(),
-  fax: z.string().min(1, "Fax is required").optional(),
-  sms: z.string().min(1, "SMS is required").optional(),
-  alternativeEmail: z
-    .string()
-    .min(1, "Alternative email is required")
-    .optional(),
-  webAddress: z.string().min(1, "Web address is required").optional(),
+  address1: z.string().min(1, "Address Line 1 is required").optional(),
+  city1: z.string().min(1, "City is required").optional(),
+  state1: z.string().min(1, "State is required").optional(),
+  zip1: z.string().min(1, "ZIP Code is required").optional(),
+  address2: z.string().optional(),
+  city2: z.string().optional(),
+  state2: z.string().optional(),
+  zip2: z.string().optional(),
+  phone: z.string().min(1, "Phone number is required").optional(),
+  cell: z.string().optional(),
+  fax: z.string().optional(),
+  email2: z.email("Invalid email address").optional(),
+  webAddress: z.string().optional(),
+  sms: z.string().optional(),
+  ssn: z.string().optional(),
+  taxNumber: z.string().optional(),
 });
 
 const updateBirdSchema = z.object({
@@ -276,7 +291,7 @@ const eventsQuerySchema = z.object({
     .int()
     .min(1, "Limit must be a positive integer")
     .default(10),
-  isOpen:z.boolean().optional(),
+  isOpen: z.boolean().optional(),
 });
 
 const addBirdSchema = z.object({
