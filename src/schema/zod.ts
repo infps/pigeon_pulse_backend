@@ -32,7 +32,10 @@ const feeSchemaCreate = z.object({
     .number()
     .int()
     .min(0, "Minimum entry fees must be a non-negative integer"),
-  maxBirdCount: z.number().int().min(0, "Maximum number of birds must be at least 0"),
+  maxBirdCount: z
+    .number()
+    .int()
+    .min(0, "Maximum number of birds must be at least 0"),
   maxBackupBirdCount: z
     .number()
     .int()
@@ -42,9 +45,15 @@ const feeSchemaCreate = z.object({
     .number()
     .min(0, "Fees cut percent must be a non-negative number")
     .max(100, "Fees cut percent cannot exceed 100"),
-  hotSpot1Fee: z.number().min(0, "Hot spot 1 fee must be a non-negative number"),
-  hotSpot2Fee: z.number().min(0, "Hot spot 2 fee must be a non-negative number"),
-  hotSpot3Fee: z.number().min(0, "Hot spot 3 fee must be a non-negative number"),
+  hotSpot1Fee: z
+    .number()
+    .min(0, "Hot spot 1 fee must be a non-negative number"),
+  hotSpot2Fee: z
+    .number()
+    .min(0, "Hot spot 2 fee must be a non-negative number"),
+  hotSpot3Fee: z
+    .number()
+    .min(0, "Hot spot 3 fee must be a non-negative number"),
   hotSpotFinalFee: z
     .number()
     .min(0, "Hot spot final fee must be a non-negative number"),
@@ -182,26 +191,36 @@ const queryParamsSchema = z.object({
 
 const createEventSchemaBody = z.object({
   name: z.string().min(1, "Event name is required"),
-  status: z.enum(["OPEN", "CLOSED"]),
   shortName: z.string().min(1, "Short name is required"),
   date: z.coerce.date(),
   type: z.enum(["AGN", "AS"]),
-  trainingCount: z
+  isOpen: z.boolean().default(true),
+  trainingFrom: z
     .number()
     .int()
-    .min(0, "Training count must be a non-negative integer"),
-  inventoryCount: z
+    .min(0, "Training from must be a non-negative integer"),
+  trainingTo: z
     .number()
     .int()
-    .min(0, "Inventory count must be a non-negative integer"),
-  finalRaceCount: z
+    .min(0, "Training to must be a non-negative integer"),
+  inventoryFrom: z
     .number()
     .int()
-    .min(0, "Final race count must be a non-negative integer"),
-  hotspotCount: z
+    .min(0, "Inventory from must be a non-negative integer"),
+  inventoryTo: z
     .number()
     .int()
-    .min(0, "Hotspot count must be a non-negative integer"),
+    .min(0, "Inventory to must be a non-negative integer"),
+  finalFrom: z.number().int().min(0, "Final to must be a non-negative integer"),
+  finalTo: z.number().int().min(0, "Final to must be a non-negative integer"),
+  hotspotFrom: z
+    .number()
+    .int()
+    .min(0, "Hotspot from must be a non-negative integer"),
+  hotspotTo: z
+    .number()
+    .int()
+    .min(0, "Hotspot to must be a non-negative integer"),
   feeSchemaId: z.uuid("Invalid fee schema ID format"),
   finalRacePrizeSchemaId: z.uuid("Invalid prize schema ID format"),
   hotspot1PrizeSchemaId: z.uuid("Invalid prize schema ID format"),
@@ -257,7 +276,7 @@ const eventsQuerySchema = z.object({
     .int()
     .min(1, "Limit must be a positive integer")
     .default(10),
-  status: z.enum(["OPEN", "CLOSED"]).optional(),
+  isOpen:z.boolean().optional(),
 });
 
 const addBirdSchema = z.object({

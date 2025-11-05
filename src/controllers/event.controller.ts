@@ -19,11 +19,55 @@ const createEvent = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const event = await prisma.event.create({
-      data: {
-        ...validatedData,
-        creatorId: req.user.id,
-      },
+    const userId = req.user.id;
+    const event = await prisma.$transaction(async (tx) => {
+      const event = await tx.event.create({
+        data: {
+          name: validatedData.name,
+          shortName: validatedData.shortName,
+          date: validatedData.date,
+          type: validatedData.type,
+          isOpen: validatedData.isOpen,
+          feeSchemaId: validatedData.feeSchemaId,
+          avgWinnerPrizeSchemaId: validatedData.avgWinnerPrizeSchemaId,
+          hotspot1PrizeSchemaId: validatedData.hotspot1PrizeSchemaId,
+          hotspot2PrizeSchemaId: validatedData.hotspot2PrizeSchemaId,
+          hotspot3PrizeSchemaId: validatedData.hotspot3PrizeSchemaId,
+          finalRacePrizeSchemaId: validatedData.finalRacePrizeSchemaId,
+          bettingSchemeId: validatedData.bettingSchemaId,
+          creatorId: userId,
+        },
+      });
+
+      await tx.eventRaceNumber.createMany({
+        data: [
+          {
+            eventId: event.id,
+            numberGroup: 1,
+            numberRangeFrom: validatedData.trainingFrom,
+            numberRangeTo: validatedData.trainingTo,
+          },
+          {
+            eventId: event.id,
+            numberGroup: 2,
+            numberRangeFrom: validatedData.inventoryFrom,
+            numberRangeTo: validatedData.inventoryTo,
+          },
+          {
+            eventId: event.id,
+            numberGroup: 3,
+            numberRangeFrom: validatedData.finalFrom,
+            numberRangeTo: validatedData.finalTo,
+          },
+          {
+            eventId: event.id,
+            numberGroup: 4,
+            numberRangeFrom: validatedData.hotspotFrom,
+            numberRangeTo: validatedData.hotspotTo,
+          },
+        ],
+      });
+      return event;
     });
     sendSuccess(res, event, "Event created successfully", STATUS.CREATED);
   } catch (error: any) {
@@ -82,16 +126,16 @@ const listEvents = async (req: Request, res: Response) => {
   }
   try {
     const events = await prisma.event.findMany({
-      where: { status: pagination.status || undefined },
+      where: { isOpen: pagination.isOpen || undefined },
       select: {
         id: true,
         date: true,
         name: true,
         shortName: true,
-        status: true,
+        isOpen: true,
         _count: {
           select: {
-            EventInventoryItem: true,
+            eventInventoryItems: true,
           },
         },
       },
@@ -99,7 +143,9 @@ const listEvents = async (req: Request, res: Response) => {
       take: pagination.limit,
       orderBy: { createdAt: "desc" },
     });
-    const totalCount = await prisma.event.count();
+    const totalCount = await prisma.event.count({
+      where: { isOpen: pagination.isOpen || undefined },
+    });
     sendSuccess(
       res,
       { events, totalCount },
@@ -161,10 +207,10 @@ const listEvent = async (req: Request, res: Response) => {
         name: true,
         shortName: true,
         date: true,
-        status: true,
+        isOpen: true,
         _count: {
           select: {
-            EventInventoryItem: true,
+            eventInventoryItems: true,
           },
         },
         feeSchemaId: true,
@@ -173,27 +219,30 @@ const listEvent = async (req: Request, res: Response) => {
         hotspot2PrizeSchemaId: true,
         hotspot3PrizeSchemaId: true,
         finalRacePrizeSchemaId: true,
-        hotspotCount: true,
-        trainingCount: true,
-        finalRaceCount: true,
-        inventoryCount: true,
+        eventRaceNumbers: {
+          select: {
+            numberGroup: true,
+            numberRangeFrom: true,
+            numberRangeTo: true,
+          },
+        },
         feeSchema: {
           select: {
             entryFee: true,
-            hs1Fee: true,
-            hs2Fee: true,
-            hs3Fee: true,
-            finalRaceFee: true,
-            perchFee: true,
+            hotSpot1Fee: true,
+            hotSpot2Fee: true,
+            hotSpot3Fee: true,
+            hotSpotFinalFee: true,
           },
         },
+
         finalRacePrizeSchema: {
           select: {
             distributions: {
               select: {
                 fromPosition: true,
                 toPosition: true,
-                percentage: true,
+                prizeValue: true,
               },
             },
           },
@@ -229,17 +278,17 @@ const getMoreEvents = async (req: Request, res: Response) => {
     const events = await prisma.event.findMany({
       where: {
         NOT: { id: validatedParams.id },
-        status: pagination.status || undefined,
+        isOpen: pagination.isOpen || undefined,
       },
       select: {
         id: true,
         date: true,
         name: true,
         shortName: true,
-        status: true,
+        isOpen: true,
         _count: {
           select: {
-            EventInventoryItem: true,
+            eventInventoryItems: true,
           },
         },
       },
@@ -250,7 +299,7 @@ const getMoreEvents = async (req: Request, res: Response) => {
     const totalCount = await prisma.event.count({
       where: {
         NOT: { id: validatedParams.id },
-        status: pagination.status || undefined,
+        isOpen: pagination.isOpen || undefined,
       },
     });
     sendSuccess(
