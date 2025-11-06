@@ -73,7 +73,7 @@ const capturePayment = async (req: Request, res: Response) => {
 
         await tx.eventInventory.update({
           where: { id: paymentRecord.eventInventoryId },
-          data: { isPaid: true },
+          data: {  },
         });
       });
 
@@ -125,7 +125,7 @@ const capturePayment = async (req: Request, res: Response) => {
 };
 
 const getMyPayments = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "BREEDER") {
+  if (!req.user) {
     return sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
   }
 

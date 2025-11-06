@@ -31,7 +31,7 @@ function typeToRaceId(type: string, number: number): string {
 }
 
 const createRace = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "ADMIN") {
+  if (!req.user) {
     sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -45,7 +45,7 @@ const createRace = async (req: Request, res: Response) => {
       },
       select: {
         id: true,
-        EventInventoryItem: {
+        eventInventoryItems: {
           select: { id: true },
         },
       },
@@ -65,12 +65,12 @@ const createRace = async (req: Request, res: Response) => {
       const race = await tx.race.create({
         data: {
           ...validatedData,
-          externalRaceId: typeToRaceId(validatedData.type, raceNumber + 1),
+          raceNumber: raceNumber + 1,
         },
       });
 
       await tx.raceItem.createMany({
-        data: event.EventInventoryItem.map((item) => ({
+        data: event.eventInventoryItems.map((item) => ({
           eventInventoryItemId: item.id,
           raceId: race.id,
         })),
@@ -86,7 +86,7 @@ const createRace = async (req: Request, res: Response) => {
 };
 
 const listRaces = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "ADMIN") {
+  if (!req.user) {
     sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -108,7 +108,7 @@ const listRaces = async (req: Request, res: Response) => {
 };
 
 const listRace = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "ADMIN") {
+  if (!req.user) {
     sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -133,7 +133,7 @@ const listRace = async (req: Request, res: Response) => {
 };
 
 const listRaceItems = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "ADMIN") {
+  if (!req.user) {
     sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -151,15 +151,16 @@ const listRaceItems = async (req: Request, res: Response) => {
         raceBasketTime: true,
         eventInventoryItem: {
           select: {
-            band: true,
-            rfId: true,
             bird: {
               select: {
+                rfId: true,
+                band: true,
                 color: true,
-                is_lost: true,
+                isLost: true,
                 breeder: {
                   select: {
-                    name: true,
+                    firstName: true,
+                    lastName: true,
                   },
                 },
               },
@@ -182,7 +183,7 @@ const listRaceItems = async (req: Request, res: Response) => {
 };
 
 const raceItemLoftBasket = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "ADMIN") {
+  if (!req.user) {
     sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -198,7 +199,9 @@ const raceItemLoftBasket = async (req: Request, res: Response) => {
     const raceItem = await prisma.raceItem.findFirst({
       where: {
         eventInventoryItem: {
-          rfId,
+          bird: {
+            rfId,
+          },
         },
         raceId: params.id,
       },
@@ -234,7 +237,7 @@ const raceItemLoftBasket = async (req: Request, res: Response) => {
 };
 
 const raceItemRaceBasket = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "ADMIN") {
+  if (!req.user) {
     sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -250,7 +253,9 @@ const raceItemRaceBasket = async (req: Request, res: Response) => {
     const raceItem = await prisma.raceItem.findFirst({
       where: {
         eventInventoryItem: {
-          rfId,
+          bird: {
+            rfId,
+          },
         },
         raceId: params.id,
       },
@@ -289,7 +294,7 @@ const raceItemRaceBasket = async (req: Request, res: Response) => {
 };
 
 const listRaceResults = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "ADMIN") {
+  if (!req.user) {
     sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -305,15 +310,16 @@ const listRaceResults = async (req: Request, res: Response) => {
         raceItemResult: true,
         eventInventoryItem: {
           select: {
-            band: true,
-            rfId: true,
             bird: {
               select: {
+                band: true,
+                rfId: true,
                 color: true,
                 birdName: true,
                 breeder: {
                   select: {
-                    name: true,
+                    firstName: true,
+                    lastName: true,
                   },
                 },
               },
@@ -345,7 +351,7 @@ const listRaceResults = async (req: Request, res: Response) => {
 };
 
 const publishRaceResults = async (req: Request, res: Response) => {
-  if (!req.user || req.user.role !== "ADMIN") {
+  if (!req.user) {
     sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
     return;
   }
@@ -356,7 +362,9 @@ const publishRaceResults = async (req: Request, res: Response) => {
     const raceItem = await prisma.raceItem.findFirst({
       where: {
         eventInventoryItem: {
-          rfId,
+          bird:{
+            rfId
+          }
         },
         raceId: params.id,
       },
@@ -384,20 +392,21 @@ const publishRaceResults = async (req: Request, res: Response) => {
         raceItemId: raceItem.id,
         raceItem: {
           eventInventoryItem: {
-            rfId,
+            bird:{
+              rfId
+            }
           },
         },
       },
       create: {
         raceItemId: raceItem.id,
         arrivalTime: new Date(),
-        distance: raceItem.race.distance,
-        speed: raceItem.race.distance / elapsedHours,
+        // speed: raceItem.race.distance / elapsedHours,
       },
       update: {
         arrivalTime: new Date(),
-        distance: raceItem.race.distance,
-        speed: raceItem.race.distance / elapsedHours,
+        // distance: raceItem.race.distance,
+        // speed: raceItem.race.distance / elapsedHours,
       },
     });
     sendSuccess(
