@@ -64,8 +64,22 @@ const createRace = async (req: Request, res: Response) => {
     const race = await prisma.$transaction(async (tx) => {
       const race = await tx.race.create({
         data: {
-          ...validatedData,
+          distance: validatedData.distance,
+          startTime: validatedData.startTime,
+          type: validatedData.type,
+          eventId: validatedData.eventId,
+          location: validatedData.location,
           raceNumber: raceNumber + 1,
+          description: validatedData.description,
+          arrivalTemperature: validatedData.arrivalTemperature,
+          arrivalWeather: validatedData.arrivalWeather,
+          arrivalWind: validatedData.arrivalWind,
+          endTime: validatedData.endTime,
+          sunset: validatedData.sunset,
+          sunrise: validatedData.sunrise,
+          temperature: validatedData.temperature,
+          weather: validatedData.weather,
+          wind: validatedData.wind,
         },
       });
 
@@ -81,7 +95,54 @@ const createRace = async (req: Request, res: Response) => {
 
     sendSuccess(res, race, "Race created successfully", STATUS.CREATED);
   } catch (error) {
+    console.error("Error creating race:", error);
     sendError(res, "Error creating race", {}, STATUS.INTERNAL_SERVER_ERROR);
+  }
+};
+
+const updateRace = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+      return;
+    }
+    const params = validateSchema(req, res, "params", idParamsSchema);
+    if (!params) return;
+
+    const validatedData = validateSchema(req, res, "body", createRaceSchema);
+    if (!validatedData) return;
+
+    const race = await prisma.race.findUnique({
+      where: { id: params.id },
+    });
+    if (!race) {
+      sendError(res, "Race not found", {}, STATUS.NOT_FOUND);
+      return;
+    }
+    const updatedRace = await prisma.race.update({
+      where: { id: params.id },
+      data: {
+        distance: validatedData.distance,
+        startTime: validatedData.startTime,
+        type: validatedData.type,
+        eventId: validatedData.eventId,
+        location: validatedData.location,
+        description: validatedData.description,
+        arrivalTemperature: validatedData.arrivalTemperature,
+        arrivalWeather: validatedData.arrivalWeather,
+        arrivalWind: validatedData.arrivalWind,
+        endTime: validatedData.endTime,
+        sunset: validatedData.sunset,
+        sunrise: validatedData.sunrise,
+        temperature: validatedData.temperature,
+        weather: validatedData.weather,
+        wind: validatedData.wind,
+      },
+    });
+    sendSuccess(res, updatedRace, "Race updated successfully", STATUS.OK);
+  } catch (error) {
+    console.error("Error updating race:", error);
+    sendError(res, "Error updating race", {}, STATUS.INTERNAL_SERVER_ERROR);
   }
 };
 
@@ -146,9 +207,23 @@ const listRaceItems = async (req: Request, res: Response) => {
         raceId: params.id,
       },
       select: {
+        id: true,
         loftBasketed: true,
         raceBasketed: true,
         raceBasketTime: true,
+        isLost: true,
+        loftBasket: {
+          select: {
+            id: true,
+            basketNumber: true,
+          },
+        },
+        raceBasket: {
+          select: {
+            id: true,
+            basketNumber: true,
+          },
+        },
         eventInventoryItem: {
           select: {
             bird: {
@@ -156,6 +231,7 @@ const listRaceItems = async (req: Request, res: Response) => {
                 rfId: true,
                 band: true,
                 color: true,
+                birdName: true,
                 isLost: true,
                 breeder: {
                   select: {
@@ -176,6 +252,395 @@ const listRaceItems = async (req: Request, res: Response) => {
     sendError(
       res,
       "Error retrieving race items",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+const listBaskets = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+
+  try {
+    const baskets = await prisma.basket.findMany({
+      where: { raceId: params.id },
+      orderBy: { basketNumber: "asc" },
+      include: {
+        _count: {
+          select: {
+            raceBasketItems: true,
+            loftBasketItems: true,
+          },
+        },
+      },
+    });
+    sendSuccess(res, baskets, "Baskets retrieved successfully", STATUS.OK);
+  } catch (error) {
+    console.error("Error retrieving baskets:", error);
+    sendError(
+      res,
+      "Error retrieving baskets",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+const createBasket = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+  const { capacity, isRaceBasket, basketNumber } = req.body as {
+    capacity?: number;
+    isRaceBasket?: boolean;
+    basketNumber?: number;
+  };
+
+  if (typeof capacity !== "number" || capacity <= 0) {
+    sendError(
+      res,
+      "capacity must be a positive number",
+      {},
+      STATUS.BAD_REQUEST
+    );
+    return;
+  }
+
+  try {
+    let numberToUse = basketNumber;
+    if (!numberToUse) {
+      const count = await prisma.basket.count({
+        where: { raceId: params.id, isRaceBasket: !!isRaceBasket },
+      });
+      numberToUse = count + 1;
+    }
+    const basket = await prisma.basket.create({
+      data: {
+        raceId: params.id,
+        capacity,
+        isRaceBasket: !!isRaceBasket,
+        basketNumber: numberToUse!,
+      },
+    });
+    sendSuccess(res, basket, "Basket created successfully", STATUS.CREATED);
+  } catch (error) {
+    console.error("Error creating basket:", error);
+    sendError(res, "Error creating basket", {}, STATUS.INTERNAL_SERVER_ERROR);
+  }
+};
+
+const updateBasket = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+  const basketId = req.params.basketId;
+  
+  if (!basketId) {
+    sendError(res, "basketId is required", {}, STATUS.BAD_REQUEST);
+    return;
+  }
+
+  const { capacity, basketNumber } = req.body as {
+    capacity?: number;
+    basketNumber?: number;
+  };
+
+  if (capacity !== undefined && (typeof capacity !== "number" || capacity <= 0)) {
+    sendError(
+      res,
+      "capacity must be a positive number",
+      {},
+      STATUS.BAD_REQUEST
+    );
+    return;
+  }
+
+  if (basketNumber !== undefined && (typeof basketNumber !== "number" || basketNumber <= 0)) {
+    sendError(
+      res,
+      "basketNumber must be a positive number",
+      {},
+      STATUS.BAD_REQUEST
+    );
+    return;
+  }
+
+  try {
+    const basket = await prisma.basket.findUnique({
+      where: { id: basketId },
+    });
+
+    if (!basket || basket.raceId !== params.id) {
+      sendError(res, "Basket not found for race", {}, STATUS.NOT_FOUND);
+      return;
+    }
+
+    const updateData: { capacity?: number; basketNumber?: number } = {};
+    if (capacity !== undefined) updateData.capacity = capacity;
+    if (basketNumber !== undefined) updateData.basketNumber = basketNumber;
+
+    const updatedBasket = await prisma.basket.update({
+      where: { id: basketId },
+      data: updateData,
+    });
+
+    sendSuccess(res, updatedBasket, "Basket updated successfully", STATUS.OK);
+  } catch (error) {
+    console.error("Error updating basket:", error);
+    sendError(res, "Error updating basket", {}, STATUS.INTERNAL_SERVER_ERROR);
+  }
+};
+
+const deleteBasket = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+  const basketId = req.params.basketId;
+
+  if (!basketId) {
+    sendError(res, "basketId is required", {}, STATUS.BAD_REQUEST);
+    return;
+  }
+
+  try {
+    const basket = await prisma.basket.findUnique({
+      where: { id: basketId },
+      include: {
+        _count: {
+          select: {
+            raceBasketItems: true,
+            loftBasketItems: true,
+          },
+        },
+      },
+    });
+
+    if (!basket || basket.raceId !== params.id) {
+      sendError(res, "Basket not found for race", {}, STATUS.NOT_FOUND);
+      return;
+    }
+
+    const totalItems = basket._count.raceBasketItems + basket._count.loftBasketItems;
+    if (totalItems > 0) {
+      sendError(
+        res,
+        "Cannot delete basket with assigned items. Please remove all items first.",
+        {},
+        STATUS.BAD_REQUEST
+      );
+      return;
+    }
+
+    await prisma.basket.delete({
+      where: { id: basketId },
+    });
+
+    sendSuccess(res, { id: basketId }, "Basket deleted successfully", STATUS.OK);
+  } catch (error) {
+    console.error("Error deleting basket:", error);
+    sendError(res, "Error deleting basket", {}, STATUS.INTERNAL_SERVER_ERROR);
+  }
+};
+
+const updateRaceItem = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+  const raceItemId = req.params.raceItemId;
+
+  if (!raceItemId) {
+    sendError(res, "raceItemId is required", {}, STATUS.BAD_REQUEST);
+    return;
+  }
+
+  const { loftBasketId, raceBasketId, loftBasketed } = req.body as {
+    loftBasketId?: string | null;
+    raceBasketId?: string | null;
+    loftBasketed?: boolean;
+  };
+
+  try {
+    const raceItem = await prisma.raceItem.findUnique({
+      where: { id: raceItemId },
+    });
+
+    if (!raceItem || raceItem.raceId !== params.id) {
+      sendError(res, "Race item not found for race", {}, STATUS.NOT_FOUND);
+      return;
+    }
+
+    // Validate baskets belong to the race
+    if (loftBasketId) {
+      const basket = await prisma.basket.findUnique({
+        where: { id: loftBasketId },
+      });
+      if (!basket || basket.raceId !== params.id || basket.isRaceBasket) {
+        sendError(
+          res,
+          "Invalid loft basket for this race",
+          {},
+          STATUS.BAD_REQUEST
+        );
+        return;
+      }
+    }
+
+    if (raceBasketId) {
+      const basket = await prisma.basket.findUnique({
+        where: { id: raceBasketId },
+      });
+      if (!basket || basket.raceId !== params.id || !basket.isRaceBasket) {
+        sendError(
+          res,
+          "Invalid race basket for this race",
+          {},
+          STATUS.BAD_REQUEST
+        );
+        return;
+      }
+    }
+
+    const updateData: {
+      loftBasketId?: string | null;
+      loftBasketed?: boolean;
+      raceBasketId?: string | null;
+      raceBasketed?: boolean;
+      raceBasketTime?: Date | null;
+    } = {};
+
+    if (loftBasketId !== undefined) {
+      updateData.loftBasketId = loftBasketId;
+      updateData.loftBasketed = loftBasketed ?? !!loftBasketId;
+    }
+
+    if (raceBasketId !== undefined) {
+      updateData.raceBasketId = raceBasketId;
+      updateData.raceBasketed = !!raceBasketId;
+      updateData.raceBasketTime = raceBasketId ? new Date() : null;
+    }
+
+    const updatedRaceItem = await prisma.raceItem.update({
+      where: { id: raceItemId },
+      data: updateData,
+      include: {
+        loftBasket: {
+          select: {
+            id: true,
+            basketNumber: true,
+          },
+        },
+        raceBasket: {
+          select: {
+            id: true,
+            basketNumber: true,
+          },
+        },
+        eventInventoryItem: {
+          include: {
+            bird: {
+              include: {
+                breeder: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    sendSuccess(res, updatedRaceItem, "Race item updated successfully", STATUS.OK);
+  } catch (error) {
+    console.error("Error updating race item:", error);
+    sendError(res, "Error updating race item", {}, STATUS.INTERNAL_SERVER_ERROR);
+  }
+};
+
+const assignToBasket = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized access", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const params = validateSchema(req, res, "params", idParamsSchema);
+  if (!params) return;
+  const basketId = req.params.basketId;
+  const { rfId } = req.body as { rfId?: string };
+  if (!basketId || !rfId) {
+    sendError(res, "basketId and rfId are required", {}, STATUS.BAD_REQUEST);
+    return;
+  }
+
+  try {
+    const basket = await prisma.basket.findUnique({
+      where: { id: basketId },
+    });
+    if (!basket || basket.raceId !== params.id) {
+      sendError(res, "Basket not found for race", {}, STATUS.NOT_FOUND);
+      return;
+    }
+
+    const raceItem = await prisma.raceItem.findFirst({
+      where: {
+        raceId: params.id,
+        eventInventoryItem: { bird: { rfId } },
+      },
+    });
+    if (!raceItem) {
+      sendError(res, "Race item not found", {}, STATUS.NOT_FOUND);
+      return;
+    }
+
+    // Count current occupancy
+    const occupancy = await prisma.raceItem.count({
+      where: basket.isRaceBasket
+        ? { raceBasketId: basket.id }
+        : { loftBasketId: basket.id },
+    });
+    if (occupancy >= basket.capacity) {
+      sendError(res, "Basket is full", {}, STATUS.BAD_REQUEST);
+      return;
+    }
+
+    const updated = await prisma.raceItem.update({
+      where: { id: raceItem.id },
+      data: basket.isRaceBasket
+        ? {
+            raceBasketId: basket.id,
+            raceBasketed: true,
+            raceBasketTime: new Date(),
+          }
+        : {
+            loftBasketId: basket.id,
+            loftBasketed: true,
+          },
+    });
+
+    sendSuccess(res, updated, "Assigned to basket", STATUS.OK);
+  } catch (error) {
+    console.error("Error assigning to basket:", error);
+    sendError(
+      res,
+      "Error assigning to basket",
       {},
       STATUS.INTERNAL_SERVER_ERROR
     );
@@ -362,9 +827,9 @@ const publishRaceResults = async (req: Request, res: Response) => {
     const raceItem = await prisma.raceItem.findFirst({
       where: {
         eventInventoryItem: {
-          bird:{
-            rfId
-          }
+          bird: {
+            rfId,
+          },
         },
         raceId: params.id,
       },
@@ -392,9 +857,9 @@ const publishRaceResults = async (req: Request, res: Response) => {
         raceItemId: raceItem.id,
         raceItem: {
           eventInventoryItem: {
-            bird:{
-              rfId
-            }
+            bird: {
+              rfId,
+            },
           },
         },
       },
@@ -434,4 +899,11 @@ export {
   raceItemRaceBasket,
   listRaceResults,
   publishRaceResults,
+  listBaskets,
+  createBasket,
+  updateBasket,
+  deleteBasket,
+  updateRaceItem,
+  assignToBasket,
+  updateRace
 };

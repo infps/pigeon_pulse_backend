@@ -20,55 +20,32 @@ const createEvent = async (req: Request, res: Response) => {
   }
   try {
     const userId = req.user.id;
-    const event = await prisma.$transaction(async (tx) => {
-      const event = await tx.event.create({
-        data: {
-          name: validatedData.name,
-          shortName: validatedData.shortName,
-          date: validatedData.date,
-          type: validatedData.type,
-          isOpen: validatedData.isOpen,
-          feeSchemaId: validatedData.feeSchemaId,
-          avgWinnerPrizeSchemaId: validatedData.avgWinnerPrizeSchemaId,
-          hotspot1PrizeSchemaId: validatedData.hotspot1PrizeSchemaId,
-          hotspot2PrizeSchemaId: validatedData.hotspot2PrizeSchemaId,
-          hotspot3PrizeSchemaId: validatedData.hotspot3PrizeSchemaId,
-          finalRacePrizeSchemaId: validatedData.finalRacePrizeSchemaId,
-          bettingSchemeId: validatedData.bettingSchemaId,
-          creatorId: userId,
-        },
-      });
-
-      await tx.eventRaceNumber.createMany({
-        data: [
-          {
-            eventId: event.id,
-            numberGroup: 1,
-            numberRangeFrom: validatedData.trainingFrom,
-            numberRangeTo: validatedData.trainingTo,
-          },
-          {
-            eventId: event.id,
-            numberGroup: 2,
-            numberRangeFrom: validatedData.inventoryFrom,
-            numberRangeTo: validatedData.inventoryTo,
-          },
-          {
-            eventId: event.id,
-            numberGroup: 3,
-            numberRangeFrom: validatedData.finalFrom,
-            numberRangeTo: validatedData.finalTo,
-          },
-          {
-            eventId: event.id,
-            numberGroup: 4,
-            numberRangeFrom: validatedData.hotspotFrom,
-            numberRangeTo: validatedData.hotspotTo,
-          },
-        ],
-      });
-      return event;
+    const event = await prisma.event.create({
+      data: {
+        name: validatedData.name,
+        shortName: validatedData.shortName,
+        date: validatedData.date,
+        type: validatedData.type,
+        isOpen: validatedData.isOpen,
+        feeSchemaId: validatedData.feeSchemaId,
+        avgWinnerPrizeSchemaId: validatedData.avgWinnerPrizeSchemaId,
+        hotspot1PrizeSchemaId: validatedData.hotspot1PrizeSchemaId,
+        hotspot2PrizeSchemaId: validatedData.hotspot2PrizeSchemaId,
+        hotspot3PrizeSchemaId: validatedData.hotspot3PrizeSchemaId,
+        finalRacePrizeSchemaId: validatedData.finalRacePrizeSchemaId,
+        bettingSchemeId: validatedData.bettingSchemaId,
+        creatorId: userId,
+        finalFrom: validatedData.finalFrom,
+        finalTo: validatedData.finalTo,
+        hotspotFrom: validatedData.hotspotFrom,
+        hotspotTo: validatedData.hotspotTo,
+        inventoryFrom: validatedData.inventoryFrom,
+        inventoryTo: validatedData.inventoryTo,
+        trainingFrom: validatedData.trainingFrom,
+        trainingTo: validatedData.trainingTo,
+      },
     });
+
     sendSuccess(res, event, "Event created successfully", STATUS.CREATED);
   } catch (error: any) {
     console.error("Error creating event:", error);
@@ -110,7 +87,28 @@ const updateEvent = async (req: Request, res: Response) => {
     }
     const updatedEvent = await prisma.event.update({
       where: { id: validatedParams.id, creatorId: req.user.id },
-      data: validatedData,
+      data: {
+        name: validatedData.name,
+        shortName: validatedData.shortName,
+        date: validatedData.date,
+        type: validatedData.type,
+        isOpen: validatedData.isOpen,
+        feeSchemaId: validatedData.feeSchemaId,
+        avgWinnerPrizeSchemaId: validatedData.avgWinnerPrizeSchemaId,
+        hotspot1PrizeSchemaId: validatedData.hotspot1PrizeSchemaId,
+        hotspot2PrizeSchemaId: validatedData.hotspot2PrizeSchemaId,
+        hotspot3PrizeSchemaId: validatedData.hotspot3PrizeSchemaId,
+        finalRacePrizeSchemaId: validatedData.finalRacePrizeSchemaId,
+        bettingSchemeId: validatedData.bettingSchemaId,
+        finalFrom: validatedData.finalFrom,
+        finalTo: validatedData.finalTo,
+        hotspotFrom: validatedData.hotspotFrom,
+        hotspotTo: validatedData.hotspotTo,
+        inventoryFrom: validatedData.inventoryFrom,
+        inventoryTo: validatedData.inventoryTo,
+        trainingFrom: validatedData.trainingFrom,
+        trainingTo: validatedData.trainingTo,
+      },
     });
     sendSuccess(res, updatedEvent, "Event updated successfully", STATUS.OK);
   } catch (error) {
@@ -208,6 +206,7 @@ const listEvent = async (req: Request, res: Response) => {
         shortName: true,
         date: true,
         isOpen: true,
+        type: true,
         _count: {
           select: {
             eventInventoryItems: true,
@@ -218,21 +217,25 @@ const listEvent = async (req: Request, res: Response) => {
         hotspot1PrizeSchemaId: true,
         hotspot2PrizeSchemaId: true,
         hotspot3PrizeSchemaId: true,
+        bettingSchemeId: true,
         finalRacePrizeSchemaId: true,
-        eventRaceNumbers: {
-          select: {
-            numberGroup: true,
-            numberRangeFrom: true,
-            numberRangeTo: true,
-          },
-        },
+        finalFrom: true,
+        finalTo: true,
+        hotspotFrom: true,
+        hotspotTo: true,
+        inventoryFrom: true,
+        inventoryTo: true,
+        trainingFrom: true,
+        trainingTo: true,
         feeSchema: {
           select: {
+            maxBirdCount:true,
             entryFee: true,
             hotSpot1Fee: true,
             hotSpot2Fee: true,
             hotSpot3Fee: true,
             hotSpotFinalFee: true,
+            perchFeeItems:true
           },
         },
 

@@ -18,10 +18,20 @@ const createFeeSchema = async (req: Request, res: Response) => {
   if (!validatedData) {
     return;
   }
+  console.log(req.user)
   try {
     const feeSchema = await prisma.feeSchema.create({
       data: {
-        ...validatedData,
+        name: validatedData.name,
+        entryFee: validatedData.entryFee,
+        feesCutPercent: validatedData.feesCutPercent,
+        hotSpot1Fee: validatedData.hotSpot1Fee,
+        hotSpot2Fee: validatedData.hotSpot2Fee,
+        hotSpot3Fee: validatedData.hotSpot3Fee,
+        hotSpotFinalFee: validatedData.hotSpotFinalFee,
+        maxBackupBirdCount: validatedData.maxBackupBirdCount,
+        maxBirdCount: validatedData.maxBirdCount,
+        minEntryFees: validatedData.minEntryFees,
         createdById: req.user.id,
         perchFeeItems:{
           createMany:{
@@ -332,6 +342,9 @@ const getFeeSchema = async (req: Request, res: Response) => {
   try {
     const feeSchema = await prisma.feeSchema.findUnique({
       where: { id: validatedParams.id, createdById: req.user.id },
+      include:{
+        perchFeeItems:true
+      }
     });
     if (!feeSchema) {
       sendError(res, "Fee schema not found", {}, STATUS.NOT_FOUND);

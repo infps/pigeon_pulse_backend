@@ -61,9 +61,7 @@ const feeSchemaCreate = z
     perchFees: z.array(
       z.object({
         birdNo: z.number().int().min(1, "Bird number must be at least 1"),
-        perchFee: z
-          .number()
-          .min(0, "Perch fee must be a non-negative number"),
+        perchFee: z.number().min(0, "Perch fee must be a non-negative number"),
       })
     ),
   })
@@ -344,12 +342,21 @@ const createRaceSchema = z.object({
   ]),
   eventId: z.uuid("Invalid event ID format"),
   location: z.string().min(1, "Location is required"),
+  description: z.string().optional(),
   distance: z.coerce
     .number()
     .int()
     .min(1, "Distance must be a positive integer"),
   startTime: z.coerce.date(),
-  arrivalDate: z.coerce.date(),
+  endTime: z.coerce.date(),
+  sunrise: z.string(),
+  sunset: z.string(),
+  weather: z.string().min(1, "Weather is required"),
+  wind: z.string().min(1, "Wind is required"),
+  temperature: z.string().min(1, "Temperature is required"),
+  arrivalWeather: z.string().min(1, "Arrival weather is required"),
+  arrivalWind: z.string().min(1, "Arrival wind is required"),
+  arrivalTemperature: z.string().min(1, "Arrival temperature is required"),
 });
 
 export {

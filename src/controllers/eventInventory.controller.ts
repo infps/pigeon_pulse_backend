@@ -171,7 +171,7 @@ const createEventInventory = async (req: Request, res: Response) => {
             data: {
               paymentMethod: "BANK_TRANSFER",
               type: feeType.type as any,
-              paymentValue: feeType.amount,
+              paymentValue: feeType.amount * validatedData.birds.length,
               status: "PENDING",
               breederId: breeder.id,
               eventInventoryId: inventory.id,
@@ -259,27 +259,14 @@ const listEventInventory = async (req: Request, res: Response) => {
       where: {
         ...queryConditions,
       },
-      select: {
-        id: true,
-        createdAt: true,
-        reservedBirds: true,
-        loft: true,
-        breeder: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            state1: true,
+      include: {
+        breeder: true,
+        eventInventoryItems: {
+          include: {
+            bird: true,
           },
         },
-        payments: {
-          where: {
-            type: "PERCH_FEE",
-          },
-          select: {
-            paymentValue: true,
-          },
-        },
+        payments: true,
       },
     });
     sendSuccess(

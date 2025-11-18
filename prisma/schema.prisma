@@ -122,15 +122,11 @@ model User {
     updatedAt DateTime @updatedAt
 
     // Relations
-    birds               Bird[]
-    eventInventories    EventInventory[]
-    payments            Payment[]
-    partnerships        Partners[]
-    eventsCreated       Event[]
-    feeSchemasCreated   FeeSchema[]
-    prizeSchemasCreated PrizeSchema[]
-    rightGroups         UserRightGroup[]
-    BettingScheme       BettingScheme[]
+    birds            Bird[]
+    eventInventories EventInventory[]
+    payments         Payment[]
+    partnerships     Partners[]
+    rightGroups      UserRightGroup[]
 
     @@index([email])
     @@index([breederNumber])
@@ -225,7 +221,7 @@ model FeeSchema {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+    createdBy   OrganizerData @relation(fields: [createdById], references: [id], onDelete: Cascade)
     createdById String
 
     // Relations
@@ -253,7 +249,7 @@ model PrizeSchema {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+    createdBy   OrganizerData @relation(fields: [createdById], references: [id], onDelete: Cascade)
     createdById String
 
     // Relations
@@ -329,7 +325,7 @@ model BettingScheme {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    createdBy               User                     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+    createdBy               OrganizerData            @relation(fields: [createdById], references: [id], onDelete: Cascade)
     createdById             String
     // Relations
     events                  Event[]
@@ -364,12 +360,24 @@ model Event {
     updatedAt DateTime @updatedAt
 
     // Creator
-    creator   User   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+    creator   OrganizerData @relation(fields: [creatorId], references: [id], onDelete: Cascade)
     creatorId String
 
     // Fee Schema
     feeSchema   FeeSchema @relation(fields: [feeSchemaId], references: [id], onDelete: Restrict)
     feeSchemaId String
+
+    trainingFrom Int
+    trainingTo   Int
+
+    inventoryFrom Int
+    inventoryTo   Int
+
+    finalFrom Int
+    finalTo   Int
+
+    hotspotFrom Int
+    hotspotTo   Int
 
     // Prize Schemas
     finalRacePrizeSchema   PrizeSchema? @relation("FinalRacePrize", fields: [finalRacePrizeSchemaId], references: [id], onDelete: SetNull)
@@ -578,9 +586,9 @@ model Payment {
     breeder          User           @relation(fields: [breederId], references: [id], onDelete: Cascade)
     breederId        String
 
-    status           PaymentStatus?
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    status    PaymentStatus?
+    createdAt DateTime       @default(now())
+    updatedAt DateTime       @updatedAt
 
     @@index([eventInventoryId])
     @@index([breederId])
@@ -614,8 +622,8 @@ model Race {
     // Timing
     startTime DateTime
     endTime   DateTime?
-    sunrise   DateTime?
-    sunset    DateTime?
+    sunrise   String?
+    sunset    String?
 
     // Status
     isClosed Boolean @default(false)
@@ -803,6 +811,11 @@ model OrganizerData {
     note      String?
     password  String
     status    UserStatus @default(ACTIVE)
+
+    eventsCreated       Event[]
+    feeSchemasCreated   FeeSchema[]
+    prizeSchemasCreated PrizeSchema[]
+    BettingScheme       BettingScheme[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt

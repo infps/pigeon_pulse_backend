@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "public"."Race" ALTER COLUMN "sunrise" SET DATA TYPE TEXT,
+ALTER COLUMN "sunset" SET DATA TYPE TEXT;
