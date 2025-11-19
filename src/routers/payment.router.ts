@@ -3,11 +3,17 @@ import { requireRole } from "../middlewares/auth.middleware";
 import {
   capturePayment,
   getMyPayments,
+  createPaymentOrder,
 } from "../controllers/payments.controller";
 
 const paymentRouter = Router();
 
 paymentRouter.post("/capture", requireRole(["BREEDER"]), capturePayment);
 paymentRouter.get("/my", requireRole(["BREEDER"]), getMyPayments);
+paymentRouter.post(
+  "/:id/create-order",
+  requireRole(["BREEDER"]),
+  createPaymentOrder
+);
 
 export default paymentRouter;

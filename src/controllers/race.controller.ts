@@ -159,9 +159,61 @@ const listRaces = async (req: Request, res: Response) => {
       where: {
         eventId: params.id,
       },
+      include: {
+        _count: {
+          select: {
+            raceItems: true,
+          },
+        },
+      },
     });
 
-    sendSuccess(res, races, "Races retrieved successfully", STATUS.OK);
+    // Calculate statistics for each race
+    const racesWithStats = await Promise.all(
+      races.map(async (race) => {
+        const stats = await prisma.raceItem.groupBy({
+          by: ['isLost'],
+          where: {
+            raceId: race.id,
+          },
+          _count: {
+            _all: true,
+          },
+        });
+
+        const basketedCount = await prisma.raceItem.count({
+          where: {
+            raceId: race.id,
+            raceBasketed: true,
+          },
+        });
+
+        const arrivedCount = await prisma.raceItemResult.count({
+          where: {
+            raceItem: {
+              raceId: race.id,
+            },
+          },
+        });
+
+        const totalBirds = race._count.raceItems;
+        const lostCount = stats.find(s => s.isLost)?._count._all || 0;
+        const notArrived = totalBirds - arrivedCount - lostCount;
+
+        return {
+          ...race,
+          stats: {
+            totalBirds,
+            basketed: basketedCount,
+            arrived: arrivedCount,
+            notArrived,
+            lost: lostCount,
+          },
+        };
+      })
+    );
+
+    sendSuccess(res, racesWithStats, "Races retrieved successfully", STATUS.OK);
   } catch (error) {
     console.error("Error retrieving races:", error);
     sendError(res, "Error retrieving races", {}, STATUS.INTERNAL_SERVER_ERROR);

@@ -172,4 +172,129 @@ const getMyPayments = async (req: Request, res: Response) => {
   }
 };
 
-export { capturePayment, getMyPayments };
+const createPaymentOrder = async (req: Request, res: Response) => {
+  if (!req.user) {
+    return sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+  }
+
+  const paymentId = req.params.id;
+  if (!paymentId) {
+    return sendError(res, "Payment ID is required", {}, STATUS.BAD_REQUEST);
+  }
+
+  try {
+    const payment = await prisma.payment.findUnique({
+      where: {
+        id: paymentId,
+        breederId: req.user.id,
+      },
+      select: {
+        id: true,
+        paymentValue: true,
+        status: true,
+        type: true,
+        eventInventory: {
+          select: {
+            event: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      return sendError(res, "Payment not found", {}, STATUS.NOT_FOUND);
+    }
+
+    if (payment.status !== "PENDING") {
+      return sendError(
+        res,
+        "Payment is not pending",
+        {},
+        STATUS.BAD_REQUEST
+      );
+    }
+
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      return sendError(
+        res,
+        "Failed to fetch PayPal access token",
+        {},
+        STATUS.INTERNAL_SERVER_ERROR
+      );
+    }
+
+    const paypalOrder = await got.post(
+      `${process.env.PAYPAL_API_BASE}/v2/checkout/orders`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        json: {
+          intent: "CAPTURE",
+          purchase_units: [
+            {
+              items: [
+                {
+                  name: `${payment.type} - ${payment.eventInventory?.event?.name || "Event"}`,
+                  unit_amount: {
+                    currency_code: "USD",
+                    value: payment.paymentValue.toFixed(2),
+                  },
+                  quantity: "1",
+                },
+              ],
+              amount: {
+                currency_code: "USD",
+                value: payment.paymentValue.toFixed(2),
+                breakdown: {
+                  item_total: {
+                    currency_code: "USD",
+                    value: payment.paymentValue.toFixed(2),
+                  },
+                },
+              },
+            },
+          ],
+          application_context: {
+            return_url: `${process.env.BREEDER_DOMAIN}/payment/success`,
+            cancel_url: `${process.env.BREEDER_DOMAIN}/payment/cancel`,
+          },
+        },
+      }
+    );
+
+    const orderData = JSON.parse(paypalOrder.body);
+
+    // Update payment with the new PayPal order ID
+    await prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        transactionId: orderData.id,
+        paymentDate: new Date(),
+      },
+    });
+
+    return sendSuccess(
+      res,
+      { orderId: orderData.id },
+      "PayPal order created successfully",
+      STATUS.CREATED
+    );
+  } catch (error) {
+    console.error("Error creating PayPal order:", error);
+    return sendError(
+      res,
+      "Failed to create PayPal order",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+export { capturePayment, getMyPayments, createPaymentOrder };
