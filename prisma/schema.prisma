@@ -103,6 +103,7 @@ model Basket {
 
 model BettingScheme {
     id                String @id @default(uuid())
+    id_betting_scheme Int?   @unique
     name              String
     bettingCutPercent Float
 
@@ -431,6 +432,7 @@ model EventRaceNumber {
 
 model FeeSchema {
     id                 String  @id @default(uuid())
+    id_fee_schema      Int?     @unique
     name               String
     entryFee           Float
     isRefundable       Boolean @default(false)
@@ -543,6 +545,7 @@ model Payment {
 
 model PerchFeeItem {
     id          String    @id @default(uuid())
+    id_perch_fee_item Int?       @unique
     birdNo      Int
     perchFee    Float
     feeSchema   FeeSchema @relation(fields: [feeSchemaId], references: [id], onDelete: Cascade)
