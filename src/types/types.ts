@@ -6,7 +6,7 @@ type ReqUser = {
   id: string;
   firstName: string | null;
   lastName: string | null;
-  email: string;
+  email: string | null;
   status: "ACTIVE" | "INACTIVE" | "PROSPECT";
 };
 

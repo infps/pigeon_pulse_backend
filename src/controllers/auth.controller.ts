@@ -12,7 +12,7 @@ const breedersignup = async (req: Request, res: Response) => {
   const validatedData = validateSchema(req, res, "body", userSignupSchema);
   if (!validatedData) return;
   try {
-    const userExists = await prisma.user.findUnique({
+    const userExists = await prisma.user.findFirst({
       where: { email: validatedData.email },
       select: { id: true },
     });
@@ -49,7 +49,7 @@ const breederlogin = async (req: Request, res: Response) => {
   if (!validatedData) return;
 
   try {
-    const user = await prisma.user.findUnique({
+    const user = await prisma.user.findFirst({
       where: { email: validatedData.email },
       select: {
         id: true,
