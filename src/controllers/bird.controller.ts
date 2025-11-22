@@ -15,7 +15,7 @@ const getMyBirds = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const birds = await prisma.bird.findMany({
+    const birds = await prisma.birds.findMany({
       where: {
         breederId: req.user.id,
       },
@@ -23,7 +23,7 @@ const getMyBirds = async (req: Request, res: Response) => {
         birdName: true,
         color: true,
         sex: true,
-        id: true,
+        idBird: true,
       },
     });
     sendSuccess(res, birds, "Birds fetched successfully", STATUS.OK);
@@ -45,9 +45,9 @@ const updateBird = async (req: Request, res: Response) => {
   if (!validatedData) return;
 
   try {
-    const bird = await prisma.bird.findUnique({
+    const bird = await prisma.birds.findUnique({
       where: {
-        id: params.id,
+        idBird: params.id,
       },
     });
     if (!bird) {
@@ -55,11 +55,15 @@ const updateBird = async (req: Request, res: Response) => {
       return;
     }
 
-    const updatedBird = await prisma.bird.update({
+    const updatedBird = await prisma.birds.update({
       where: {
-        id: params.id,
+        idBird: params.id,
       },
-      data: {},
+      data: {
+        birdName: validatedData.birdName,
+        color: validatedData.color,
+        sex: validatedData.sex,
+      },
     });
     sendSuccess(res, updatedBird, "Bird updated successfully", STATUS.OK);
     return;
@@ -77,7 +81,7 @@ const addBird = async (req: Request, res: Response) => {
   const validatedData = validateSchema(req, res, "body", addBirdSchema);
   if (!validatedData) return;
   try {
-    const bird = await prisma.bird.create({
+    const bird = await prisma.birds.create({
       data: {
         breederId: req.user.id,
         ...validatedData,
@@ -103,24 +107,32 @@ const getBirdsPerEvent = async (req: Request, res: Response) => {
   if (!query) return;
 
   try {
-    const birds = await prisma.eventInventoryItem.findMany({
+    const birds = await prisma.eventInventory.findMany({
       where: {
-        eventId: params.id,
-        bird: {
-          birdName: {
-            contains: query.q || undefined,
-            mode: "insensitive",
+        idEvent: params.id,
+        eventInventoryItems: {
+          some: {
+            bird: {
+              birdName: {
+                contains: query.q || undefined,
+                mode: "insensitive",
+              },
+            },
           },
         },
       },
       include: {
-        bird: {
+        eventInventoryItems: {
           include: {
-            breeder: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
+            bird: {
+              include: {
+                breeder: {
+                  select: {
+                    idBreeder: true,
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
               },
             },
           },

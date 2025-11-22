@@ -15,19 +15,16 @@ export const requireRole = (allowedRoles: Role[]) => {
     }
     try {
       const decoded: JWTPayload = verifyToken(token);
-      if (!decoded || !decoded.userId) {
+      if (!decoded || !decoded.id) {
         return sendError(res, "Forbidden", {}, STATUS.FORBIDDEN);
       }
       let user;
       if (allowedRoles.length === 1 && allowedRoles[0] === "BREEDER") {
-        user = await prisma.user.findUnique({
-          where: { id: decoded.userId },
+        user = await prisma.breeders.findUnique({
+          where: { idBreeder: decoded.id },
           select: {
-            id: true,
+            idBreeder: true,
             email: true,
-            firstName: true,
-            lastName: true,
-            status: true,
           },
         });
       } else if (
@@ -35,31 +32,32 @@ export const requireRole = (allowedRoles: Role[]) => {
         (allowedRoles[0] === "ADMIN" || allowedRoles[0] === "SUPER_ADMIN")
       ) {
         user = await prisma.organizerData.findUnique({
-          where: { id: decoded.userId },
-          select: { id: true, email: true, firstName: true,lastName: true,status: true },
+          where: { id: decoded.id },
+          select: { id: true, email: true },
         });
       } else {
-        user = await prisma.user.findUnique({
-          where: { id: decoded.userId },
+        user = await prisma.breeders.findUnique({
+          where: { idBreeder: decoded.id },
           select: {
-            id: true,
+            idBreeder: true,
             email: true,
-            firstName: true,
-            lastName: true,
-            status: true,
           },
         });
         if (!user) {
           user = await prisma.organizerData.findUnique({
-            where: { id: decoded.userId },
-            select: { id: true, email: true, firstName: true, lastName: true, status: true },
+            where: { id: decoded.id },
+            select: { id: true, email: true },
           });
         }
       }
-      if (!user || user.status !== "ACTIVE") {
+      if (!user) {
         return sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
       }
-      req.user = user;
+      let transformedUser = {
+        id: (user as any).id || (user as any).idBreeder,
+        email: user.email,
+      };
+      req.user = transformedUser;
       next();
     } catch (error) {
       console.error("Authentication error:", error);

@@ -39,14 +39,16 @@ const createRace = async (req: Request, res: Response) => {
   if (!validatedData) return;
 
   try {
-    const event = await prisma.event.findUnique({
+    const event = await prisma.events.findUnique({
       where: {
-        id: validatedData.eventId,
+        idEvent: validatedData.eventId,
       },
       select: {
-        id: true,
-        eventInventoryItems: {
-          select: { id: true },
+        idEvent: true,
+        eventInventories: {
+          select: {
+            eventInventoryItems: { select: { idEventInventory: true } },
+          },
         },
       },
     });
@@ -56,8 +58,8 @@ const createRace = async (req: Request, res: Response) => {
     }
     const raceNumber = await prisma.race.count({
       where: {
-        eventId: validatedData.eventId,
-        type: validatedData.type,
+        idEvent: validatedData.eventId,
+        idRaceType: validatedData.type,
       },
     });
 
@@ -66,8 +68,8 @@ const createRace = async (req: Request, res: Response) => {
         data: {
           distance: validatedData.distance,
           startTime: validatedData.startTime,
-          type: validatedData.type,
-          eventId: validatedData.eventId,
+          idRaceType: validatedData.type,
+          idEvent: validatedData.eventId,
           location: validatedData.location,
           raceNumber: raceNumber + 1,
           description: validatedData.description,
@@ -83,11 +85,14 @@ const createRace = async (req: Request, res: Response) => {
         },
       });
 
+      const raceItems = event.eventInventories.flatMap((inventory) =>
+        inventory.eventInventoryItems.map((item) => ({
+          idInventoryItem: item.idEventInventory,
+          raceId: race.idRace,
+        }))
+      );
       await tx.raceItem.createMany({
-        data: event.eventInventoryItems.map((item) => ({
-          eventInventoryItemId: item.id,
-          raceId: race.id,
-        })),
+        data: raceItems,
       });
 
       return race;
@@ -113,19 +118,19 @@ const updateRace = async (req: Request, res: Response) => {
     if (!validatedData) return;
 
     const race = await prisma.race.findUnique({
-      where: { id: params.id },
+      where: { idRace: params.id },
     });
     if (!race) {
       sendError(res, "Race not found", {}, STATUS.NOT_FOUND);
       return;
     }
     const updatedRace = await prisma.race.update({
-      where: { id: params.id },
+      where: { idRace: params.id },
       data: {
         distance: validatedData.distance,
         startTime: validatedData.startTime,
-        type: validatedData.type,
-        eventId: validatedData.eventId,
+        idRaceType: validatedData.type,
+        idEvent: validatedData.eventId,
         location: validatedData.location,
         description: validatedData.description,
         arrivalTemperature: validatedData.arrivalTemperature,
@@ -157,7 +162,7 @@ const listRaces = async (req: Request, res: Response) => {
   try {
     const races = await prisma.race.findMany({
       where: {
-        eventId: params.id,
+        idEvent: params.id,
       },
       include: {
         _count: {
@@ -172,9 +177,9 @@ const listRaces = async (req: Request, res: Response) => {
     const racesWithStats = await Promise.all(
       races.map(async (race) => {
         const stats = await prisma.raceItem.groupBy({
-          by: ['isLost'],
+          by: ["isLost"],
           where: {
-            raceId: race.id,
+            idRace: race.idRace,
           },
           _count: {
             _all: true,
@@ -183,21 +188,21 @@ const listRaces = async (req: Request, res: Response) => {
 
         const basketedCount = await prisma.raceItem.count({
           where: {
-            raceId: race.id,
-            raceBasketed: true,
+            idRace: race.idRace,
+            idRaceBasket: 1,
           },
         });
 
         const arrivedCount = await prisma.raceItemResult.count({
           where: {
             raceItem: {
-              raceId: race.id,
+              idRace: race.idRace,
             },
           },
         });
 
         const totalBirds = race._count.raceItems;
-        const lostCount = stats.find(s => s.isLost)?._count._all || 0;
+        const lostCount = stats.find((s) => s.isLost)?._count._all || 0;
         const notArrived = totalBirds - arrivedCount - lostCount;
 
         return {
@@ -231,7 +236,7 @@ const listRace = async (req: Request, res: Response) => {
   try {
     const race = await prisma.race.findUnique({
       where: {
-        id: params.id,
+        idRace: params.id,
       },
     });
     if (!race) {
@@ -256,27 +261,27 @@ const listRaceItems = async (req: Request, res: Response) => {
   try {
     const raceItems = await prisma.raceItem.findMany({
       where: {
-        raceId: params.id,
+        idRace: params.id,
       },
       select: {
-        id: true,
-        loftBasketed: true,
-        raceBasketed: true,
+        idRaceItem: true,
+        isDistBasketted: true,
+        idRaceBasket: true,
         raceBasketTime: true,
         isLost: true,
-        loftBasket: {
-          select: {
-            id: true,
-            basketNumber: true,
-          },
-        },
         raceBasket: {
           select: {
-            id: true,
-            basketNumber: true,
+            idBasket: true,
+            basketNo: true,
           },
         },
-        eventInventoryItem: {
+        distBasket: {
+          select: {
+            idBasket: true,
+            basketNo: true,
+          },
+        },
+        inventoryItem: {
           select: {
             bird: {
               select: {
@@ -320,13 +325,13 @@ const listBaskets = async (req: Request, res: Response) => {
 
   try {
     const baskets = await prisma.basket.findMany({
-      where: { raceId: params.id },
-      orderBy: { basketNumber: "asc" },
+      where: { idRace: params.id },
+      orderBy: { basketNo: "asc" },
       include: {
         _count: {
           select: {
             raceBasketItems: true,
-            loftBasketItems: true,
+            distBasketItems: true,
           },
         },
       },
@@ -352,7 +357,7 @@ const createBasket = async (req: Request, res: Response) => {
   if (!params) return;
   const { capacity, isRaceBasket, basketNumber } = req.body as {
     capacity?: number;
-    isRaceBasket?: boolean;
+    isRaceBasket?: number;
     basketNumber?: number;
   };
 
@@ -370,16 +375,16 @@ const createBasket = async (req: Request, res: Response) => {
     let numberToUse = basketNumber;
     if (!numberToUse) {
       const count = await prisma.basket.count({
-        where: { raceId: params.id, isRaceBasket: !!isRaceBasket },
+        where: { idRace: params.id, isRaceBasket: isRaceBasket },
       });
       numberToUse = count + 1;
     }
     const basket = await prisma.basket.create({
       data: {
-        raceId: params.id,
+        idRace: params.id,
         capacity,
-        isRaceBasket: !!isRaceBasket,
-        basketNumber: numberToUse!,
+        isRaceBasket: isRaceBasket,
+        basketNo: numberToUse!,
       },
     });
     sendSuccess(res, basket, "Basket created successfully", STATUS.CREATED);
@@ -397,18 +402,21 @@ const updateBasket = async (req: Request, res: Response) => {
   const params = validateSchema(req, res, "params", idParamsSchema);
   if (!params) return;
   const basketId = req.params.basketId;
-  
   if (!basketId) {
     sendError(res, "basketId is required", {}, STATUS.BAD_REQUEST);
     return;
   }
+  const basketIdInt = parseInt(basketId, 10);
 
-  const { capacity, basketNumber } = req.body as {
+  const { capacity, basketNo } = req.body as {
     capacity?: number;
-    basketNumber?: number;
+    basketNo?: number;
   };
 
-  if (capacity !== undefined && (typeof capacity !== "number" || capacity <= 0)) {
+  if (
+    capacity !== undefined &&
+    (typeof capacity !== "number" || capacity <= 0)
+  ) {
     sendError(
       res,
       "capacity must be a positive number",
@@ -418,7 +426,10 @@ const updateBasket = async (req: Request, res: Response) => {
     return;
   }
 
-  if (basketNumber !== undefined && (typeof basketNumber !== "number" || basketNumber <= 0)) {
+  if (
+    basketNo !== undefined &&
+    (typeof basketNo !== "number" || basketNo <= 0)
+  ) {
     sendError(
       res,
       "basketNumber must be a positive number",
@@ -430,20 +441,20 @@ const updateBasket = async (req: Request, res: Response) => {
 
   try {
     const basket = await prisma.basket.findUnique({
-      where: { id: basketId },
+      where: { idBasket: basketIdInt },
     });
 
-    if (!basket || basket.raceId !== params.id) {
+    if (!basket || basket.idRace !== params.id) {
       sendError(res, "Basket not found for race", {}, STATUS.NOT_FOUND);
       return;
     }
 
-    const updateData: { capacity?: number; basketNumber?: number } = {};
+    const updateData: { capacity?: number; basketNo?: number } = {};
     if (capacity !== undefined) updateData.capacity = capacity;
-    if (basketNumber !== undefined) updateData.basketNumber = basketNumber;
+    if (basketNo !== undefined) updateData.basketNo = basketNo;
 
     const updatedBasket = await prisma.basket.update({
-      where: { id: basketId },
+      where: { idBasket: basketIdInt },
       data: updateData,
     });
 
@@ -468,25 +479,28 @@ const deleteBasket = async (req: Request, res: Response) => {
     return;
   }
 
+  const basketIdInt = parseInt(basketId, 10);
+
   try {
     const basket = await prisma.basket.findUnique({
-      where: { id: basketId },
+      where: { idBasket: basketIdInt },
       include: {
         _count: {
           select: {
             raceBasketItems: true,
-            loftBasketItems: true,
+            distBasketItems: true,
           },
         },
       },
     });
 
-    if (!basket || basket.raceId !== params.id) {
+    if (!basket || basket.idRace !== params.id) {
       sendError(res, "Basket not found for race", {}, STATUS.NOT_FOUND);
       return;
     }
 
-    const totalItems = basket._count.raceBasketItems + basket._count.loftBasketItems;
+    const totalItems =
+      basket._count.raceBasketItems + basket._count.distBasketItems;
     if (totalItems > 0) {
       sendError(
         res,
@@ -498,10 +512,15 @@ const deleteBasket = async (req: Request, res: Response) => {
     }
 
     await prisma.basket.delete({
-      where: { id: basketId },
+      where: { idBasket: basketIdInt },
     });
 
-    sendSuccess(res, { id: basketId }, "Basket deleted successfully", STATUS.OK);
+    sendSuccess(
+      res,
+      { id: basketIdInt },
+      "Basket deleted successfully",
+      STATUS.OK
+    );
   } catch (error) {
     console.error("Error deleting basket:", error);
     sendError(res, "Error deleting basket", {}, STATUS.INTERNAL_SERVER_ERROR);
@@ -522,31 +541,33 @@ const updateRaceItem = async (req: Request, res: Response) => {
     return;
   }
 
-  const { loftBasketId, raceBasketId, loftBasketed } = req.body as {
-    loftBasketId?: string | null;
-    raceBasketId?: string | null;
-    loftBasketed?: boolean;
+  const raceItemIdInt = parseInt(raceItemId, 10);
+
+  const { distBasketId, raceBasketId, distBasketed } = req.body as {
+    distBasketId?: number | null;
+    raceBasketId?: number | null;
+    distBasketed?: number | null;
   };
 
   try {
     const raceItem = await prisma.raceItem.findUnique({
-      where: { id: raceItemId },
+      where: { idRaceItem: raceItemIdInt },
     });
 
-    if (!raceItem || raceItem.raceId !== params.id) {
+    if (!raceItem || raceItem.idRace !== params.id) {
       sendError(res, "Race item not found for race", {}, STATUS.NOT_FOUND);
       return;
     }
 
     // Validate baskets belong to the race
-    if (loftBasketId) {
+    if (distBasketId) {
       const basket = await prisma.basket.findUnique({
-        where: { id: loftBasketId },
+        where: { idBasket: distBasketId },
       });
-      if (!basket || basket.raceId !== params.id || basket.isRaceBasket) {
+      if (!basket || basket.idRace !== params.id || basket.isRaceBasket) {
         sendError(
           res,
-          "Invalid loft basket for this race",
+          "Invalid dist basket for this race",
           {},
           STATUS.BAD_REQUEST
         );
@@ -556,9 +577,9 @@ const updateRaceItem = async (req: Request, res: Response) => {
 
     if (raceBasketId) {
       const basket = await prisma.basket.findUnique({
-        where: { id: raceBasketId },
+        where: { idBasket: raceBasketId },
       });
-      if (!basket || basket.raceId !== params.id || !basket.isRaceBasket) {
+      if (!basket || basket.idRace !== params.id || !basket.isRaceBasket) {
         sendError(
           res,
           "Invalid race basket for this race",
@@ -570,41 +591,41 @@ const updateRaceItem = async (req: Request, res: Response) => {
     }
 
     const updateData: {
-      loftBasketId?: string | null;
-      loftBasketed?: boolean;
-      raceBasketId?: string | null;
-      raceBasketed?: boolean;
+      distBasketId?: number | null;
+      distBasketed?: number | null;
+      raceBasketId?: number | null;
+      raceBasketed?: number | null;
       raceBasketTime?: Date | null;
     } = {};
 
-    if (loftBasketId !== undefined) {
-      updateData.loftBasketId = loftBasketId;
-      updateData.loftBasketed = loftBasketed ?? !!loftBasketId;
+    if (distBasketId !== undefined) {
+      updateData.distBasketId = distBasketId;
+      updateData.distBasketed = distBasketed ?? (distBasketId ? 1 : 0);
     }
 
     if (raceBasketId !== undefined) {
       updateData.raceBasketId = raceBasketId;
-      updateData.raceBasketed = !!raceBasketId;
+      updateData.raceBasketed = raceBasketId ? 1 : 0;
       updateData.raceBasketTime = raceBasketId ? new Date() : null;
     }
 
     const updatedRaceItem = await prisma.raceItem.update({
-      where: { id: raceItemId },
+      where: { idRaceItem: raceItemIdInt },
       data: updateData,
       include: {
-        loftBasket: {
+        distBasket: {
           select: {
-            id: true,
-            basketNumber: true,
+            idBasket: true,
+            basketNo: true,
           },
         },
         raceBasket: {
           select: {
-            id: true,
-            basketNumber: true,
+            idBasket: true,
+            basketNo: true,
           },
         },
-        eventInventoryItem: {
+        inventoryItem: {
           include: {
             bird: {
               include: {
@@ -621,10 +642,20 @@ const updateRaceItem = async (req: Request, res: Response) => {
       },
     });
 
-    sendSuccess(res, updatedRaceItem, "Race item updated successfully", STATUS.OK);
+    sendSuccess(
+      res,
+      updatedRaceItem,
+      "Race item updated successfully",
+      STATUS.OK
+    );
   } catch (error) {
     console.error("Error updating race item:", error);
-    sendError(res, "Error updating race item", {}, STATUS.INTERNAL_SERVER_ERROR);
+    sendError(
+      res,
+      "Error updating race item",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
   }
 };
 
@@ -644,17 +675,17 @@ const assignToBasket = async (req: Request, res: Response) => {
 
   try {
     const basket = await prisma.basket.findUnique({
-      where: { id: basketId },
+      where: { idBasket: parseInt(basketId, 10) },
     });
-    if (!basket || basket.raceId !== params.id) {
+    if (!basket || basket.idRace !== params.id) {
       sendError(res, "Basket not found for race", {}, STATUS.NOT_FOUND);
       return;
     }
 
     const raceItem = await prisma.raceItem.findFirst({
       where: {
-        raceId: params.id,
-        eventInventoryItem: { bird: { rfId } },
+        idRace: params.id,
+        inventoryItem: { bird: { rfId } },
       },
     });
     if (!raceItem) {
@@ -665,25 +696,25 @@ const assignToBasket = async (req: Request, res: Response) => {
     // Count current occupancy
     const occupancy = await prisma.raceItem.count({
       where: basket.isRaceBasket
-        ? { raceBasketId: basket.id }
-        : { loftBasketId: basket.id },
+        ? { idRaceBasket: basket.idBasket }
+        : { idDistBasket: basket.idBasket },
     });
-    if (occupancy >= basket.capacity) {
+    if (occupancy >= (basket.capacity ?? 0)) {
       sendError(res, "Basket is full", {}, STATUS.BAD_REQUEST);
       return;
     }
 
     const updated = await prisma.raceItem.update({
-      where: { id: raceItem.id },
+      where: { idRaceItem: raceItem.idRaceItem },
       data: basket.isRaceBasket
         ? {
-            raceBasketId: basket.id,
-            raceBasketed: true,
+            idRaceBasket: basket.idBasket,
+            isDistBasketted: 1,
             raceBasketTime: new Date(),
           }
         : {
-            loftBasketId: basket.id,
-            loftBasketed: true,
+            idDistBasket: basket.idBasket,
+            isDistBasketted: 1,
           },
     });
 
@@ -715,12 +746,12 @@ const raceItemLoftBasket = async (req: Request, res: Response) => {
   try {
     const raceItem = await prisma.raceItem.findFirst({
       where: {
-        eventInventoryItem: {
+        inventoryItem: {
           bird: {
             rfId,
           },
         },
-        raceId: params.id,
+        idRace: params.id,
       },
     });
 
@@ -730,10 +761,10 @@ const raceItemLoftBasket = async (req: Request, res: Response) => {
     }
     const updatedRaceItem = await prisma.raceItem.update({
       where: {
-        id: raceItem.id,
+        idRaceItem: raceItem.idRaceItem,
       },
       data: {
-        loftBasketed: true,
+        isDistBasketted: 1,
       },
     });
     sendSuccess(
@@ -769,12 +800,12 @@ const raceItemRaceBasket = async (req: Request, res: Response) => {
   try {
     const raceItem = await prisma.raceItem.findFirst({
       where: {
-        eventInventoryItem: {
+        inventoryItem: {
           bird: {
             rfId,
           },
         },
-        raceId: params.id,
+        idRace: params.id,
       },
     });
 
@@ -785,10 +816,10 @@ const raceItemRaceBasket = async (req: Request, res: Response) => {
 
     const updatedRaceItem = await prisma.raceItem.update({
       where: {
-        id: raceItem.id,
+        idRaceItem: raceItem.idRaceItem,
       },
       data: {
-        raceBasketed: true,
+        isDistBasketted: 1,
         raceBasketTime: new Date(),
       },
     });
@@ -821,11 +852,11 @@ const listRaceResults = async (req: Request, res: Response) => {
   try {
     const raceResults = await prisma.raceItem.findMany({
       where: {
-        raceId: params.id,
+        idRace: params.id,
       },
       select: {
         raceItemResult: true,
-        eventInventoryItem: {
+        inventoryItem: {
           select: {
             bird: {
               select: {
@@ -878,12 +909,12 @@ const publishRaceResults = async (req: Request, res: Response) => {
   try {
     const raceItem = await prisma.raceItem.findFirst({
       where: {
-        eventInventoryItem: {
+        inventoryItem: {
           bird: {
             rfId,
           },
         },
-        raceId: params.id,
+        idRace: params.id,
       },
       select: {
         race: {
@@ -892,7 +923,7 @@ const publishRaceResults = async (req: Request, res: Response) => {
             startTime: true,
           },
         },
-        id: true,
+        idRaceItem: true,
       },
     });
 
@@ -902,21 +933,14 @@ const publishRaceResults = async (req: Request, res: Response) => {
     }
 
     const elapsedHours =
-      (Date.now() - raceItem.race.startTime.getTime()) / (1000 * 60 * 60);
+      (Date.now() - (raceItem.race?.startTime?.getTime() ?? Date.now())) / (1000 * 60 * 60);
 
     const updatedRaceResult = await prisma.raceItemResult.upsert({
       where: {
-        raceItemId: raceItem.id,
-        raceItem: {
-          eventInventoryItem: {
-            bird: {
-              rfId,
-            },
-          },
-        },
+        idRaceItem: raceItem.idRaceItem,
       },
       create: {
-        raceItemId: raceItem.id,
+        idRaceItem: raceItem.idRaceItem,
         arrivalTime: new Date(),
         // speed: raceItem.race.distance / elapsedHours,
       },
@@ -957,5 +981,5 @@ export {
   deleteBasket,
   updateRaceItem,
   assignToBasket,
-  updateRace
+  updateRace,
 };

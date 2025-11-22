@@ -4,18 +4,17 @@ import { STATUS } from "../utils/statusCodes";
 import { prisma } from "../lib/prisma";
 import validateSchema from "../utils/validators";
 import { updateUserSchema } from "../schema/zod";
+import { number } from "zod";
 const getBreederProfile = async (req: Request, res: Response) => {
   if (!req.user) {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
     return;
   }
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
+    const user = await prisma.breeders.findUnique({
+      where: { idBreeder: req.user.id },
       omit: {
-        password: true,
-        createdAt: true,
-        updatedAt: true,
+        loginPassword: true,
         status: true,
       },
     });
@@ -45,9 +44,6 @@ const getAdminProfile = async (req: Request, res: Response) => {
       where: { id: req.user.id },
       omit: {
         password: true,
-        createdAt: true,
-        updatedAt: true,
-        status: true,
       },
     });
     if (!user) {
@@ -76,8 +72,8 @@ const updateBreederProfile = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const updatedUser = await prisma.user.update({
-      where: { id: req.user.id },
+    const updatedUser = await prisma.breeders.update({
+      where: { idBreeder: req.user.id },
       data: validatedData,
     });
     if (!updatedUser) {
@@ -102,14 +98,18 @@ const getBreedersByEvent = async (req: Request, res: Response) => {
     return;
   }
   const { eventId } = req.params;
+  if (!eventId || isNaN(parseInt(eventId, 10))) {
+    sendError(res, "Invalid eventId parameter", {}, STATUS.BAD_REQUEST);
+    return;
+  }
   try {
-    const breeders = await prisma.user.findMany({
+    const breeders = await prisma.breeders.findMany({
       where: {
-        eventInventories:{
-          every:{
-            eventId: eventId
-          }
-        }
+        eventInventories: {
+          every: {
+            idEvent: parseInt(eventId, 10),
+          },
+        },
       },
     });
     sendSuccess(res, breeders, "Breeders retrieved successfully", STATUS.OK);
@@ -129,33 +129,29 @@ const getBreedersAddressBook = async (req: Request, res: Response) => {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
     return;
   }
-  const { q , eventId,status } = req.query;
+  const { q, eventId, status } = req.query;
 
   if (q && typeof q !== "string") {
     sendError(res, "Invalid query parameter", {}, STATUS.BAD_REQUEST);
     return;
   }
-  if(eventId && typeof eventId !== "string") {
+  if (eventId && typeof eventId !== "number") {
     sendError(res, "Invalid eventId parameter", {}, STATUS.BAD_REQUEST);
     return;
   }
-  if(status && typeof status !== "string") {
+  if (status && typeof status !== "number") {
     sendError(res, "Invalid status parameter", {}, STATUS.BAD_REQUEST);
     return;
   }
-  if(status && !["ACTIVE","INACTIVE","PROSPECT"].includes(status)) {
-    sendError(res, "Status must be either ACTIVE or INACTIVE", {}, STATUS.BAD_REQUEST);
-    return;
-  }
   try {
-    const breeders = await prisma.user.findMany({
+    const breeders = await prisma.breeders.findMany({
       where: {
-        ...(status ? { status: status as "ACTIVE" | "INACTIVE" | "PROSPECT" } : {}),
+        ...(status ? { status: parseInt(status, 10) } : {}),
         ...(eventId
           ? {
               eventInventories: {
                 some: {
-                  eventId: eventId,
+                  idEvent: parseInt(eventId, 10),
                 },
               },
             }
@@ -194,7 +190,7 @@ const getBreedersAddressBook = async (req: Request, res: Response) => {
         ],
       },
       omit: {
-        password: true,
+        loginPassword: true,
       },
     });
     sendSuccess(

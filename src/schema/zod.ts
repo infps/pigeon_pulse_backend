@@ -13,8 +13,7 @@ const userLoginSchema = z.object({
 });
 
 const organizerSignupSchema = z.object({
-  firstName: z.string().min(1, "Name is required"),
-  lastName: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "Name is required"),
   email: z.email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters long"),
 });
@@ -28,7 +27,7 @@ const feeSchemaCreate = z
   .object({
     name: z.string().min(1, "Fee name is required"),
     entryFee: z.number().min(0, "Entry fee must be a non-negative number"),
-    isRefundable: z.boolean().default(false),
+    isRefundable: z.number().int().min(0).max(1),
     minEntryFees: z
       .number()
       .int()
@@ -41,7 +40,7 @@ const feeSchemaCreate = z
       .number()
       .int()
       .min(0, "Maximum number of backup birds must be at least 0"),
-    isFloatingBackup: z.boolean().default(false),
+    isFloatingBackup: z.number().int().min(0).max(1),
     feesCutPercent: z
       .number()
       .min(0, "Fees cut percent must be a non-negative number")
@@ -71,7 +70,7 @@ const feeSchemaCreate = z
   });
 
 const createBettingSchemaBody = z.object({
-  name: z.string().min(1, "Betting name is required"),
+  bettingSchemeName: z.string().min(1, "Betting name is required"),
   bettingCutPercent: z
     .number()
     .min(0, "Betting cut percent must be a non-negative number")
@@ -193,7 +192,7 @@ const createPrizeSchemaBody = z.object({
 });
 
 const idParamsSchema = z.object({
-  id: z.uuid("Invalid ID format"),
+  id: z.number().int().min(0, "ID must be a positive integer"),
 });
 
 const queryParamsSchema = z.object({
@@ -201,44 +200,18 @@ const queryParamsSchema = z.object({
 });
 
 const createEventSchemaBody = z.object({
-  name: z.string().min(1, "Event name is required"),
-  shortName: z.string().min(1, "Short name is required"),
-  date: z.coerce.date(),
-  type: z.enum(["AGN", "AS"]),
-  isOpen: z.boolean().default(true),
-  trainingFrom: z
-    .number()
-    .int()
-    .min(0, "Training from must be a non-negative integer"),
-  trainingTo: z
-    .number()
-    .int()
-    .min(0, "Training to must be a non-negative integer"),
-  inventoryFrom: z
-    .number()
-    .int()
-    .min(0, "Inventory from must be a non-negative integer"),
-  inventoryTo: z
-    .number()
-    .int()
-    .min(0, "Inventory to must be a non-negative integer"),
-  finalFrom: z.number().int().min(0, "Final to must be a non-negative integer"),
-  finalTo: z.number().int().min(0, "Final to must be a non-negative integer"),
-  hotspotFrom: z
-    .number()
-    .int()
-    .min(0, "Hotspot from must be a non-negative integer"),
-  hotspotTo: z
-    .number()
-    .int()
-    .min(0, "Hotspot to must be a non-negative integer"),
-  feeSchemaId: z.uuid("Invalid fee schema ID format"),
-  finalRacePrizeSchemaId: z.uuid("Invalid prize schema ID format"),
-  hotspot1PrizeSchemaId: z.uuid("Invalid prize schema ID format"),
-  hotspot2PrizeSchemaId: z.uuid("Invalid prize schema ID format"),
-  hotspot3PrizeSchemaId: z.uuid("Invalid prize schema ID format"),
-  avgWinnerPrizeSchemaId: z.uuid("Invalid prize schema ID format"),
-  bettingSchemaId: z.uuid("Invalid betting schema ID format").optional(),
+  eventName: z.string().min(1, "Event name is required"),
+  eventShortName: z.string().min(1, "Short name is required"),
+  eventDate: z.coerce.date(),
+  type: z.number().int(),
+  isOpen: z.number().int().min(0).max(1),
+  idFeeScheme:z.number().int(),
+  idFinalPrizeScheme: z.int(),
+  idHotSpot1PrizeScheme: z.int(),
+  idHotSpot2PrizeScheme: z.int(),
+  idHotSpot3PrizeScheme: z.int(),
+  idHotSpotAvgPrizeScheme: z.int(),
+  idBettingScheme: z.int().optional()
 });
 
 const paginationSchema = z.object({
@@ -279,7 +252,7 @@ const updateUserSchema = z.object({
 const updateBirdSchema = z.object({
   birdName: z.string().min(1, "Bird name is required").optional(),
   color: z.string().min(1, "Color is required").optional(),
-  sex: z.enum(["COCK", "HEN"]).optional(),
+  sex: z.number().int().min(0).max(1).optional(),
 });
 
 const eventsQuerySchema = z.object({
@@ -289,18 +262,18 @@ const eventsQuerySchema = z.object({
     .int()
     .min(1, "Limit must be a positive integer")
     .default(10),
-  isOpen: z.boolean().optional(),
+  isOpen: z.number().int().min(0).max(1).optional(),
 });
 
 const addBirdSchema = z.object({
   birdName: z.string().min(1, "Bird name is required"),
   color: z.string().min(1, "Color is required"),
-  sex: z.enum(["COCK", "HEN"]),
+  sex: z.number().int().min(0).max(1),
 });
 
 const createOrderSchema = z.object({
-  eventId: z.uuid("Invalid event ID format"),
-  birds: z.array(z.string().min(1, "Bird ID is required")),
+  eventId: z.number().int().min(0, "Event ID must be a positive integer"),
+  birds: z.array(z.number().int().min(0, "Bird ID must be a positive integer")),
 });
 
 const paypalPaymentSchema = z.object({
@@ -320,27 +293,17 @@ const updateEventInventoryItemSchema = z.object({
   color: z.string().min(1, "Color is required"),
   birdName: z.string().min(1, "Bird Name is required"),
   note: z.string().optional(),
-  sex: z.enum(["HEN", "COCK"]),
-  is_active: z.boolean(),
-  is_lost: z.boolean(),
+  sex: z.number().int().min(0).max(1),
+  is_active: z.number().int().min(0).max(1),
+  is_lost: z.number().int().min(0).max(1),
   lost_date: z.coerce.date().nullable(),
   arrivalDate: z.coerce.date().nullable(),
   departureDate: z.coerce.date().nullable(),
 });
 
 const createRaceSchema = z.object({
-  type: z.enum([
-    "TRAINING",
-    "INVENTORY",
-    "LOFT_FLY",
-    "PULLING_FLIGHT",
-    "FINAL_RACE",
-    "HOTSPOT_1",
-    "HOTSPOT_2",
-    "HOTSPOT_3",
-    "AVG_WINNER",
-  ]),
-  eventId: z.uuid("Invalid event ID format"),
+  type: z.number().int(),
+  eventId: z.number().int().min(0, "Event ID must be a positive integer"),
   location: z.string().min(1, "Location is required"),
   description: z.string().optional(),
   distance: z.coerce

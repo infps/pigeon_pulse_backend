@@ -19,11 +19,11 @@ const createEventInventory = async (req: Request, res: Response) => {
   const validatedData = validateSchema(req, res, "body", createOrderSchema);
   if (!validatedData) return;
   try {
-    const doesEventExist = await prisma.event.findUnique({
-      where: { id: validatedData.eventId },
+    const doesEventExist = await prisma.events.findUnique({
+      where: { idEvent: validatedData.eventId },
       select: {
-        id: true,
-        feeSchema: {
+        idEvent: true,
+        feeScheme: {
           select: {
             maxBackupBirdCount: true,
             maxBirdCount: true,
@@ -48,8 +48,8 @@ const createEventInventory = async (req: Request, res: Response) => {
     }
     if (
       validatedData.birds.length >
-      doesEventExist.feeSchema.maxBirdCount +
-        doesEventExist.feeSchema.maxBackupBirdCount
+      (doesEventExist.feeScheme?.maxBirdCount as number) +
+        (doesEventExist.feeScheme?.maxBackupBirdCount as number)
     ) {
       sendError(
         res,
@@ -62,18 +62,18 @@ const createEventInventory = async (req: Request, res: Response) => {
     let totalAmount = 0;
     for (let i = 1; i <= validatedData.birds.length; i++) {
       totalAmount +=
-        doesEventExist.feeSchema.perchFeeItems[i - 1]?.perchFee || 0;
+        (doesEventExist.feeScheme?.perchFeeItems[i - 1]?.perchFee || 0);
     }
 
-    const birds = await prisma.bird.findMany({
+    const birds = await prisma.birds.findMany({
       where: {
-        id: {
+        idBird: {
           in: validatedData.birds,
         },
         breederId: breeder.id,
       },
       select: {
-        id: true,
+        idBird: true,
         birdName: true,
       },
     });
@@ -97,7 +97,7 @@ const createEventInventory = async (req: Request, res: Response) => {
                 unit_amount: {
                   currency_code: "USD",
                   value: (
-                    doesEventExist.feeSchema?.perchFeeItems[index]?.perchFee ??
+                    doesEventExist.feeScheme?.perchFeeItems[index]?.perchFee ??
                     0
                   ).toFixed(2),
                 },
@@ -128,57 +128,57 @@ const createEventInventory = async (req: Request, res: Response) => {
         data: {
           loft: "Main Loft",
           reservedBirds: validatedData.birds.length,
-          breederId: breeder.id,
-          eventId: validatedData.eventId,
+          idBreeder: breeder.id,
+          idEvent: validatedData.eventId,
           eventInventoryItems: {
             create: validatedData.birds.map((bird) => ({
               birdId: bird,
-              eventId: validatedData.eventId,
-              perchFeeValue: doesEventExist.feeSchema.perchFeeItems.find(
+              idEvent: validatedData.eventId,
+              perchFeeValue: doesEventExist.feeScheme?.perchFeeItems.find(
                 (item, index) => index === validatedData.birds.indexOf(bird)
               )?.perchFee,
-              entryFeeValue: doesEventExist.feeSchema.entryFee,
-              hotSpotFeeValue: doesEventExist.feeSchema.hotSpot1Fee,
+              entryFeeValue: doesEventExist.feeScheme?.entryFee,
+              hotSpotFeeValue: doesEventExist.feeScheme?.hotSpot1Fee,
             })),
           },
         },
       });
 
-      await tx.payment.create({
+      await tx.payments.create({
         data: {
           paymentDate: new Date(),
-          type: "PERCH_FEE",
-          paymentMethod: "BANK_TRANSFER",
+          paymentType: 0,
+          paymentMethod: 0,
           paymentValue: totalAmount,
-          transactionId: orderData.id,
-          status: "PENDING",
-          breederId: breeder.id,
-          eventInventoryId: inventory.id,
+          // transactionId: orderData.id,
+          paymentTimestamp: new Date(),
+          idEventInventory: inventory.idEventInventory,
         },
       });
 
       // Create due payment entries for other fees
-      const feeTypes = [
-        { type: "ENTRY_FEE", amount: doesEventExist.feeSchema.entryFee },
-        { type: "HOTSPOT_FEE_1", amount: doesEventExist.feeSchema.hotSpot1Fee },
-        { type: "HOTSPOT_FEE_2", amount: doesEventExist.feeSchema.hotSpot2Fee },
-        { type: "HOTSPOT_FEE_3", amount: doesEventExist.feeSchema.hotSpot3Fee },
-      ];
+    //   const feeTypes = [
+    //     { type: "ENTRY_FEE", amount: doesEventExist.feeScheme?.entryFee },
+    //     { type: "HOTSPOT_FEE_1", amount: doesEventExist.feeSchema.hotSpot1Fee },
+    //     { type: "HOTSPOT_FEE_2", amount: doesEventExist.feeSchema.hotSpot2Fee },
+    //     { type: "HOTSPOT_FEE_3", amount: doesEventExist.feeSchema.hotSpot3Fee },
+    //   ];
 
-      for (const feeType of feeTypes) {
-        if (feeType.amount && feeType.amount > 0) {
-          await tx.payment.create({
-            data: {
-              paymentMethod: "BANK_TRANSFER",
-              type: feeType.type as any,
-              paymentValue: feeType.amount * validatedData.birds.length,
-              status: "PENDING",
-              breederId: breeder.id,
-              eventInventoryId: inventory.id,
-            },
-          });
-        }
-      }
+    //   for (const feeType of feeTypes) {
+    //     if (feeType.amount && feeType.amount > 0) {
+    //       await tx.payment.create({
+    //         data: {
+    //           paymentMethod: "BANK_TRANSFER",
+    //           type: feeType.type as any,
+    //           paymentValue: feeType.amount * validatedData.birds.length,
+    //           status: "PENDING",
+    //           breederId: breeder.id,
+    //           eventInventoryId: inventory.id,
+    //         },
+    //       });
+    //     }
+    //   }
+    // });
     });
     sendSuccess(
       res,
@@ -206,20 +206,18 @@ const getMYEvents = async (req: Request, res: Response) => {
     const breederId = req.user.id;
     const events = await prisma.eventInventory.findMany({
       where: {
-        breederId: breederId,
+        idBreeder: breederId,
       },
       select: {
         event: {
           select: {
-            id: true,
-            name: true,
-            date: true,
+            idEvent: true,
+            eventName: true,
+            eventDate: true,
           },
         },
         reservedBirds: true,
         loft: true,
-
-        createdAt: true,
       },
     });
     sendSuccess(res, events, "My events retrieved successfully", STATUS.OK);
@@ -296,7 +294,7 @@ const getEventInventoryDetails = async (req: Request, res: Response) => {
 
   try {
     const eventInventory = await prisma.eventInventory.findUnique({
-      where: { id: params.id },
+      where: { idEventInventory: params.id },
       select: {
         breeder: {
           select: {
@@ -306,8 +304,8 @@ const getEventInventoryDetails = async (req: Request, res: Response) => {
         },
         event: {
           select: {
-            name: true,
-            date: true,
+            eventName: true,
+            eventDate: true,
           },
         },
         payments: true,
@@ -317,7 +315,7 @@ const getEventInventoryDetails = async (req: Request, res: Response) => {
               include: {
                 breeder: {
                   select: {
-                    id: true,
+                    idBreeder: true,
                     firstName: true,
                     lastName: true,
                   },
@@ -326,7 +324,6 @@ const getEventInventoryDetails = async (req: Request, res: Response) => {
             },
           },
         },
-        createdAt: true,
         reservedBirds: true,
         loft: true,
       },
@@ -370,8 +367,8 @@ const updateEventInventoryItem = async (req: Request, res: Response) => {
 
   try {
     const eventInventoryItem = await prisma.eventInventoryItem.findUnique({
-      where: { id: params.id },
-      select: { id: true },
+      where: { idEventInventoryItem: params.id },
+      select: { idEventInventory: true },
     });
     if (!eventInventoryItem) {
       sendError(res, "Event inventory item not found", {}, STATUS.NOT_FOUND);
@@ -379,9 +376,9 @@ const updateEventInventoryItem = async (req: Request, res: Response) => {
     }
 
     const updatedItem = await prisma.eventInventoryItem.update({
-      where: { id: params.id },
+      where: { idEventInventoryItem: params.id },
       data: {
-        arrivalDate: validatedData.arrivalDate,
+        arrivalTime: validatedData.arrivalDate,
         departureDate: validatedData.departureDate,
 
         bird: {

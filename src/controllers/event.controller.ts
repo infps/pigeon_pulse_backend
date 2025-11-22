@@ -20,29 +20,21 @@ const createEvent = async (req: Request, res: Response) => {
   }
   try {
     const userId = req.user.id;
-    const event = await prisma.event.create({
+    const event = await prisma.events.create({
       data: {
-        name: validatedData.name,
-        shortName: validatedData.shortName,
-        date: validatedData.date,
-        type: validatedData.type,
+        eventName: validatedData.eventName,
+        eventShortName: validatedData.eventShortName,
+        eventDate: validatedData.eventDate,
+        eventType: validatedData.type,
         isOpen: validatedData.isOpen,
-        feeSchemaId: validatedData.feeSchemaId,
-        avgWinnerPrizeSchemaId: validatedData.avgWinnerPrizeSchemaId,
-        hotspot1PrizeSchemaId: validatedData.hotspot1PrizeSchemaId,
-        hotspot2PrizeSchemaId: validatedData.hotspot2PrizeSchemaId,
-        hotspot3PrizeSchemaId: validatedData.hotspot3PrizeSchemaId,
-        finalRacePrizeSchemaId: validatedData.finalRacePrizeSchemaId,
-        bettingSchemeId: validatedData.bettingSchemaId,
+        idFeeScheme: validatedData.idFeeScheme,
+        idFinalPrizeScheme: validatedData.idFinalPrizeScheme,
+        idHotSpot1PrizeScheme: validatedData.idHotSpot1PrizeScheme,
+        idHotSpot2PrizeScheme: validatedData.idHotSpot2PrizeScheme,
+        idHotSpot3PrizeScheme: validatedData.idHotSpot3PrizeScheme,
+        idHotSpotAvgPrizeScheme: validatedData.idHotSpotAvgPrizeScheme,
+        idBettingScheme: validatedData.idBettingScheme,
         creatorId: userId,
-        finalFrom: validatedData.finalFrom,
-        finalTo: validatedData.finalTo,
-        hotspotFrom: validatedData.hotspotFrom,
-        hotspotTo: validatedData.hotspotTo,
-        inventoryFrom: validatedData.inventoryFrom,
-        inventoryTo: validatedData.inventoryTo,
-        trainingFrom: validatedData.trainingFrom,
-        trainingTo: validatedData.trainingTo,
       },
     });
 
@@ -77,37 +69,29 @@ const updateEvent = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const event = await prisma.event.findUnique({
-      where: { id: validatedParams.id, creatorId: req.user.id },
-      select: { id: true },
+    const event = await prisma.events.findUnique({
+      where: { idEvent: validatedParams.id, creatorId: req.user.id },
+      select: { idEvent: true },
     });
     if (!event) {
       sendError(res, "Event not found", {}, STATUS.NOT_FOUND);
       return;
     }
-    const updatedEvent = await prisma.event.update({
-      where: { id: validatedParams.id, creatorId: req.user.id },
+    const updatedEvent = await prisma.events.update({
+      where: { idEvent: validatedParams.id, creatorId: req.user.id },
       data: {
-        name: validatedData.name,
-        shortName: validatedData.shortName,
-        date: validatedData.date,
-        type: validatedData.type,
+        eventName: validatedData.eventName,
+        eventShortName: validatedData.eventShortName,
+        eventDate: validatedData.eventDate,
+        eventType: validatedData.type,
         isOpen: validatedData.isOpen,
-        feeSchemaId: validatedData.feeSchemaId,
-        avgWinnerPrizeSchemaId: validatedData.avgWinnerPrizeSchemaId,
-        hotspot1PrizeSchemaId: validatedData.hotspot1PrizeSchemaId,
-        hotspot2PrizeSchemaId: validatedData.hotspot2PrizeSchemaId,
-        hotspot3PrizeSchemaId: validatedData.hotspot3PrizeSchemaId,
-        finalRacePrizeSchemaId: validatedData.finalRacePrizeSchemaId,
-        bettingSchemeId: validatedData.bettingSchemaId,
-        finalFrom: validatedData.finalFrom,
-        finalTo: validatedData.finalTo,
-        hotspotFrom: validatedData.hotspotFrom,
-        hotspotTo: validatedData.hotspotTo,
-        inventoryFrom: validatedData.inventoryFrom,
-        inventoryTo: validatedData.inventoryTo,
-        trainingFrom: validatedData.trainingFrom,
-        trainingTo: validatedData.trainingTo,
+        idFeeScheme: validatedData.idFeeScheme,
+        idHotSpotAvgPrizeScheme: validatedData.idHotSpotAvgPrizeScheme,
+        idHotSpot1PrizeScheme: validatedData.idHotSpot1PrizeScheme,
+        idHotSpot2PrizeScheme: validatedData.idHotSpot2PrizeScheme,
+        idHotSpot3PrizeScheme: validatedData.idHotSpot3PrizeScheme,
+        idFinalPrizeScheme: validatedData.idFinalPrizeScheme,
+        idBettingScheme: validatedData.idBettingScheme,
       },
     });
     sendSuccess(res, updatedEvent, "Event updated successfully", STATUS.OK);
@@ -123,25 +107,24 @@ const listEvents = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const events = await prisma.event.findMany({
+    const events = await prisma.events.findMany({
       where: { isOpen: pagination.isOpen || undefined },
       select: {
-        id: true,
-        date: true,
-        name: true,
-        shortName: true,
+        idEvent: true,
+        eventDate: true,
+        eventName: true,
+        eventShortName: true,
         isOpen: true,
         _count: {
           select: {
-            eventInventoryItems: true,
+            eventInventories: true,
           },
         },
       },
       skip: (pagination.page - 1) * pagination.limit,
       take: pagination.limit,
-      orderBy: { createdAt: "desc" },
     });
-    const totalCount = await prisma.event.count({
+    const totalCount = await prisma.events.count({
       where: { isOpen: pagination.isOpen || undefined },
     });
     sendSuccess(
@@ -166,13 +149,12 @@ const listEventsByCreator = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const events = await prisma.event.findMany({
+    const events = await prisma.events.findMany({
       where: { creatorId: req.user.id },
       skip: (pagination.page - 1) * pagination.limit,
       take: pagination.limit,
-      orderBy: { createdAt: "desc" },
     });
-    const totalCount = await prisma.event.count({
+    const totalCount = await prisma.events.count({
       where: { creatorId: req.user.id },
     });
     sendSuccess(
@@ -198,50 +180,42 @@ const listEvent = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const event = await prisma.event.findUnique({
-      where: { id: validatedParams.id },
+    const event = await prisma.events.findUnique({
+      where: { idEvent: validatedParams.id },
       select: {
-        id: true,
-        name: true,
-        shortName: true,
-        date: true,
+        idEvent: true,
+        eventName: true,
+        eventShortName: true,
+        eventDate: true,
         isOpen: true,
-        type: true,
+        eventType: true,
         _count: {
           select: {
-            eventInventoryItems: true,
+            eventInventories: true,
           },
         },
-        feeSchemaId: true,
-        avgWinnerPrizeSchemaId: true,
-        hotspot1PrizeSchemaId: true,
-        hotspot2PrizeSchemaId: true,
-        hotspot3PrizeSchemaId: true,
-        bettingSchemeId: true,
-        finalRacePrizeSchemaId: true,
-        finalFrom: true,
-        finalTo: true,
-        hotspotFrom: true,
-        hotspotTo: true,
-        inventoryFrom: true,
-        inventoryTo: true,
-        trainingFrom: true,
-        trainingTo: true,
-        feeSchema: {
+        idFeeScheme: true,
+        idHotSpotAvgPrizeScheme: true,
+        idHotSpot1PrizeScheme: true,
+        idHotSpot2PrizeScheme: true,
+        idHotSpot3PrizeScheme: true,
+        idBettingScheme: true,
+        idFinalPrizeScheme: true,
+        feeScheme: {
           select: {
-            maxBirdCount:true,
+            maxBirdCount: true,
             entryFee: true,
             hotSpot1Fee: true,
             hotSpot2Fee: true,
             hotSpot3Fee: true,
             hotSpotFinalFee: true,
-            perchFeeItems:true
+            perchFeeItems: true,
           },
         },
 
-        finalRacePrizeSchema: {
+        finalPrizeScheme: {
           select: {
-            distributions: {
+            prizeSchemeItems: {
               select: {
                 fromPosition: true,
                 toPosition: true,
@@ -278,30 +252,29 @@ const getMoreEvents = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const events = await prisma.event.findMany({
+    const events = await prisma.events.findMany({
       where: {
-        NOT: { id: validatedParams.id },
+        NOT: { idEvent: validatedParams.id },
         isOpen: pagination.isOpen || undefined,
       },
       select: {
-        id: true,
-        date: true,
-        name: true,
-        shortName: true,
+        idEvent: true,
+        eventDate: true,
+        eventName: true,
+        eventShortName: true,
         isOpen: true,
         _count: {
           select: {
-            eventInventoryItems: true,
+            eventInventories: true,
           },
         },
       },
       skip: (pagination.page - 1) * pagination.limit,
       take: pagination.limit,
-      orderBy: { createdAt: "desc" },
     });
-    const totalCount = await prisma.event.count({
+    const totalCount = await prisma.events.count({
       where: {
-        NOT: { id: validatedParams.id },
+        NOT: { idEvent: validatedParams.id },
         isOpen: pagination.isOpen || undefined,
       },
     });

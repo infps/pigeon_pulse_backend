@@ -1,5 +1,10 @@
 import type { Request, Response } from "express";
-import { organizerLoginSchema, organizerSignupSchema, userLoginSchema, userSignupSchema } from "../schema/zod";
+import {
+  organizerLoginSchema,
+  organizerSignupSchema,
+  userLoginSchema,
+  userSignupSchema,
+} from "../schema/zod";
 import validateSchema from "../utils/validators";
 import { prisma } from "../lib/prisma";
 import { sendError, sendSuccess } from "../types/api-response";
@@ -12,31 +17,30 @@ const breedersignup = async (req: Request, res: Response) => {
   const validatedData = validateSchema(req, res, "body", userSignupSchema);
   if (!validatedData) return;
   try {
-    const userExists = await prisma.user.findFirst({
-      where: { email: validatedData.email },
-      select: { id: true },
+    const userExists = await prisma.breeders.findFirst({
+      where: { loginName: validatedData.email },
+      select: { idBreeder: true },
     });
-    const organizersExists = await prisma.organizerData.findUnique({
+    const organizersExists = await prisma.organizerData.findFirst({
       where: { email: validatedData.email },
-      select: { id: true },
+      select: { email: true },
     });
     if (userExists || organizersExists) {
       sendError(res, "User already exists", {}, STATUS.CONFLICT);
       return;
     }
-    const hashedPassword = await bcrypt.hash(validatedData.password, 10);
-    const user = await prisma.user.create({
+    const user = await prisma.breeders.create({
       data: {
-        email: validatedData.email,
-        password: hashedPassword,
+        loginName: validatedData.email,
+        loginPassword: validatedData.password,
         firstName: validatedData.firstName,
         lastName: validatedData.lastName,
       },
       omit: {
-        password: true,
+        loginPassword: true,
       },
     });
-    const token = generateJWTToken({ userId: user.id });
+    const token = generateJWTToken({ id: user.idBreeder });
     sendSuccess(res, { token }, "User created successfully", STATUS.CREATED);
   } catch (error) {
     console.error("Error during signup:", error);
@@ -49,11 +53,11 @@ const breederlogin = async (req: Request, res: Response) => {
   if (!validatedData) return;
 
   try {
-    const user = await prisma.user.findFirst({
+    const user = await prisma.breeders.findFirst({
       where: { email: validatedData.email },
       select: {
-        id: true,
-        password: true,
+        idBreeder: true,
+        loginPassword: true,
         status: true,
         firstName: true,
         lastName: true,
@@ -64,20 +68,16 @@ const breederlogin = async (req: Request, res: Response) => {
       sendError(res, "Invalid Email or Password", {}, STATUS.UNAUTHORIZED);
       return;
     }
-    const isPasswordValid = await bcrypt.compare(
-      validatedData.password,
-      user.password
-    );
-    if (!isPasswordValid) {
+    if (user.loginPassword !== validatedData.password) {
       sendError(res, "Invalid Email or Password", {}, STATUS.UNAUTHORIZED);
       return;
     }
-    if (user.status !== "ACTIVE") {
+    if (user.status != 0) {
       sendError(res, "Your account is not active", {}, STATUS.FORBIDDEN);
       return;
     }
-    const token = generateJWTToken({ userId: user.id });
-    const { password, ...userData } = user;
+    const token = generateJWTToken({ id: user.idBreeder });
+    const { loginPassword, ...userData } = user;
     sendSuccess(res, { token }, "Login successful", STATUS.OK);
   } catch (error) {
     console.error("Error during login:", error);
@@ -89,27 +89,25 @@ const adminSignup = async (req: Request, res: Response) => {
   const validatedData = validateSchema(req, res, "body", organizerSignupSchema);
   if (!validatedData) return;
   try {
-    const userExists = await prisma.organizerData.findUnique({
+    const userExists = await prisma.organizerData.findFirst({
       where: { email: validatedData.email },
-      select: { id: true },
+      select: { email: true },
     });
     if (userExists) {
       sendError(res, "User already exists", {}, STATUS.CONFLICT);
       return;
     }
-    const hashedPassword = await bcrypt.hash(validatedData.password, 10);
     const user = await prisma.organizerData.create({
       data: {
         email: validatedData.email,
-        password: hashedPassword,
-        firstName: validatedData.firstName,
-        lastName: validatedData.lastName,
+        password: validatedData.password,
+        name: validatedData.name,
       },
       omit: {
         password: true,
       },
     });
-    const token = generateJWTToken({ userId: user.id });
+    const token = generateJWTToken({ id: user.id });
     sendSuccess(res, { token }, "User created successfully", STATUS.CREATED);
   } catch (error) {
     console.error("Error during signup:", error);
@@ -122,23 +120,20 @@ const adminLogin = async (req: Request, res: Response) => {
   if (!validatedData) return;
 
   try {
-    const user = await prisma.organizerData.findUnique({
+    const user = await prisma.organizerData.findFirst({
       where: { email: validatedData.email },
-      select: { id: true, password: true, },
+      select: { email: true, password: true,id: true },
     });
     if (!user) {
       sendError(res, "Invalid Email or Password", {}, STATUS.UNAUTHORIZED);
       return;
     }
-    const isPasswordValid = await bcrypt.compare(
-      validatedData.password,
-      user.password
-    );
-    if (!isPasswordValid) {
+    
+    if (user.password !== validatedData.password) {
       sendError(res, "Invalid Email or Password", {}, STATUS.UNAUTHORIZED);
       return;
     }
-    const token = generateJWTToken({ userId: user.id });
+    const token = generateJWTToken({ id: user.id });
     const { password, ...userData } = user;
     sendSuccess(res, { token }, "Login successful", STATUS.OK);
   } catch (error) {
@@ -171,10 +166,10 @@ const getBreederSession = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
+    const user = await prisma.breeders.findUnique({
+      where: { idBreeder: req.user.id },
       select: {
-        id: true,
+        idBreeder: true,
         firstName: true,
         lastName: true,
         email: true,
@@ -188,12 +183,17 @@ const getBreederSession = async (req: Request, res: Response) => {
 
     //transform user to include name as firstName + lastName and remove firstName and lastName fields
     const transformedUser = {
-      id: user.id,
+      idBreeder: user.idBreeder,
       name: `${user.firstName} ${user.lastName}`.trim(),
       email: user.email,
       status: user.status,
     };
-    sendSuccess(res, transformedUser, "Session retrieved successfully", STATUS.OK);
+    sendSuccess(
+      res,
+      transformedUser,
+      "Session retrieved successfully",
+      STATUS.OK
+    );
   } catch (error) {
     console.error("Error retrieving session:", error);
     sendError(res, "Internal server error", {}, STATUS.INTERNAL_SERVER_ERROR);
@@ -209,9 +209,7 @@ const getAdminSession = async (req: Request, res: Response) => {
     const user = await prisma.organizerData.findUnique({
       where: { id: req.user.id },
       select: {
-        id: true,
-        firstName: true,
-        lastName: true,
+        name: true,
         email: true,
       },
     });
@@ -224,7 +222,7 @@ const getAdminSession = async (req: Request, res: Response) => {
     console.error("Error retrieving session:", error);
     sendError(res, "Internal server error", {}, STATUS.INTERNAL_SERVER_ERROR);
   }
-}
+};
 
 export {
   getBreederSession,

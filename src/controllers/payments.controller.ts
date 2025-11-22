@@ -53,7 +53,7 @@ const capturePayment = async (req: Request, res: Response) => {
     const captureId = captureInfo.id;
     const captureStatus = captureInfo.status;
 
-    const paymentRecord = await prisma.payment.findUnique({
+    const paymentRecord = await prisma.payments.findUnique({
       where: { transactionId: validatedData.orderId },
       select: { eventInventoryId: true, id: true },
     });
@@ -131,7 +131,7 @@ const getMyPayments = async (req: Request, res: Response) => {
 
   try {
     const breederId = req.user.id;
-    const payments = await prisma.payment.findMany({
+    const payments = await prisma.payments.findMany({
       where: {
         breederId: breederId,
       },

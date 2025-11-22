@@ -20,9 +20,9 @@ const createFeeSchema = async (req: Request, res: Response) => {
   }
   console.log(req.user)
   try {
-    const feeSchema = await prisma.feeSchema.create({
+    const feeScheme = await prisma.feeScheme.create({
       data: {
-        name: validatedData.name,
+        feeSchemeName: validatedData.name,
         entryFee: validatedData.entryFee,
         feesCutPercent: validatedData.feesCutPercent,
         hotSpot1Fee: validatedData.hotSpot1Fee,
@@ -32,7 +32,9 @@ const createFeeSchema = async (req: Request, res: Response) => {
         maxBackupBirdCount: validatedData.maxBackupBirdCount,
         maxBirdCount: validatedData.maxBirdCount,
         minEntryFees: validatedData.minEntryFees,
-        createdById: req.user.id,
+        creatorId: req.user.id,
+        isFloatingBackup: validatedData.isFloatingBackup,
+        isRefundable: validatedData.isRefundable,
         perchFeeItems:{
           createMany:{
             data: validatedData.perchFees.map((item) => ({
@@ -45,15 +47,15 @@ const createFeeSchema = async (req: Request, res: Response) => {
     });
     sendSuccess(
       res,
-      feeSchema,
-      "Fee schema created successfully",
+      feeScheme,
+      "Fee scheme created successfully",
       STATUS.CREATED
     );
   } catch (error) {
-    console.error("Error creating fee schema:", error);
+    console.error("Error creating fee scheme:", error);
     sendError(
       res,
-      "Failed to create fee schema",
+      "Failed to create fee scheme",
       {},
       STATUS.INTERNAL_SERVER_ERROR
     );
@@ -77,8 +79,8 @@ const createBettingSchema = async (req: Request, res: Response) => {
   try {
     const bettingSchema = await prisma.bettingScheme.create({
       data: {
-        createdById: req.user.id,
-        name: validatedData.name,
+        creatorId: req.user.id,
+        bettingSchemeName: validatedData.bettingSchemeName,
         bettingCutPercent: validatedData.bettingCutPercent,
         belgianShow1: validatedData.belgianShow1,
         belgianShow2: validatedData.belgianShow2,
@@ -133,8 +135,8 @@ const getBettingSchemas = async (req: Request, res: Response) => {
   try {
     const bettingSchemas = await prisma.bettingScheme.findMany({
       select: {
-        id: true,
-        name: true,
+        idBettingScheme: true,
+        bettingSchemeName: true,
       },
     });
     sendSuccess(
@@ -165,7 +167,7 @@ const getBettingSchema = async (req: Request, res: Response) => {
   }
   try {
     const bettingSchema = await prisma.bettingScheme.findUnique({
-      where: { id: validatedParams.id },
+      where: { idBettingScheme: validatedParams.id },
     });
     if (!bettingSchema) {
       sendError(res, "Betting schema not found", {}, STATUS.NOT_FOUND);
@@ -174,11 +176,11 @@ const getBettingSchema = async (req: Request, res: Response) => {
     sendSuccess(
       res,
       bettingSchema,
-      "Betting schema retrieved successfully",
+      "Betting scheme retrieved successfully",
       STATUS.OK
     );
   } catch (error) {
-    console.error("Error retrieving betting schema:", error);
+    console.error("Error retrieving betting scheme:", error);
     sendError(
       res,
       "Failed to retrieve betting schema",
@@ -199,22 +201,22 @@ const deleteBettingSchema = async (req: Request, res: Response) => {
   }
   try {
     const bettingSchema = await prisma.bettingScheme.findUnique({
-      where: { id: validatedParams.id },
-      select: { id: true },
+      where: { idBettingScheme: validatedParams.id },
+      select: { idBettingScheme: true },
     });
     if (!bettingSchema) {
       sendError(res, "Betting schema not found", {}, STATUS.NOT_FOUND);
       return;
     }
     await prisma.bettingScheme.delete({
-      where: { id: validatedParams.id },
+      where: { idBettingScheme: validatedParams.id },
     });
-    sendSuccess(res, {}, "Betting schema deleted successfully", STATUS.OK);
+    sendSuccess(res, {}, "Betting scheme deleted successfully", STATUS.OK);
   } catch (error) {
-    console.error("Error deleting betting schema:", error);
+    console.error("Error deleting betting scheme:", error);
     sendError(
       res,
-      "Failed to delete betting schema",
+      "Failed to delete betting scheme",
       {},
       STATUS.INTERNAL_SERVER_ERROR
     );
@@ -241,17 +243,17 @@ const updateBettingSchema = async (req: Request, res: Response) => {
   }
   try {
     const bettingSchema = await prisma.bettingScheme.findUnique({
-      where: { id: validatedParams.id },
-      select: { id: true },
+      where: { idBettingScheme: validatedParams.id },
+      select: { idBettingScheme: true },
     });
     if (!bettingSchema) {
-      sendError(res, "Betting schema not found", {}, STATUS.NOT_FOUND);
+      sendError(res, "Betting scheme not found", {}, STATUS.NOT_FOUND);
       return;
     }
     const updatedBettingSchema = await prisma.bettingScheme.update({
-      where: { id: validatedParams.id },
+      where: { idBettingScheme: validatedParams.id },
       data: {
-        name: validatedData.name,
+        bettingSchemeName: validatedData.bettingSchemeName,
         bettingCutPercent: validatedData.bettingCutPercent,
         belgianShow1: validatedData.belgianShow1,
         belgianShow2: validatedData.belgianShow2,
@@ -306,11 +308,11 @@ const getFeeSchemas = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const feeSchema = await prisma.feeSchema.findMany({
-      where: { createdById: req.user.id },
+    const feeSchema = await prisma.feeScheme.findMany({
+      where: { creatorId: req.user.id },
       select: {
-        id: true,
-        name: true,
+        idFeeScheme: true,
+        feeSchemeName: true,
       },
     });
     sendSuccess(
@@ -340,22 +342,22 @@ const getFeeSchema = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const feeSchema = await prisma.feeSchema.findUnique({
-      where: { id: validatedParams.id, createdById: req.user.id },
+    const feeSchema = await prisma.feeScheme.findUnique({
+      where: { idFeeScheme: validatedParams.id, creatorId: req.user.id },
       include:{
         perchFeeItems:true
       }
     });
     if (!feeSchema) {
-      sendError(res, "Fee schema not found", {}, STATUS.NOT_FOUND);
+      sendError(res, "Fee scheme not found", {}, STATUS.NOT_FOUND);
       return;
     }
-    sendSuccess(res, feeSchema, "Fee schema retrieved successfully", STATUS.OK);
+    sendSuccess(res, feeSchema, "Fee scheme retrieved successfully", STATUS.OK);
   } catch (error) {
-    console.error("Error retrieving fee schema:", error);
+    console.error("Error retrieving fee scheme:", error);
     sendError(
       res,
-      "Failed to retrieve fee schema",
+      "Failed to retrieve fee scheme",
       {},
       STATUS.INTERNAL_SERVER_ERROR
     );
@@ -372,36 +374,36 @@ const deleteFeeSchema = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const feeSchema = await prisma.feeSchema.findUnique({
-      where: { id: validatedParams.id, createdById: req.user.id },
-      select: { id: true },
+    const feeSchema = await prisma.feeScheme.findUnique({
+      where: { idFeeScheme: validatedParams.id, creatorId: req.user.id },
+      select: { idFeeScheme: true },
     });
     if (!feeSchema) {
-      sendError(res, "Fee schema not found", {}, STATUS.NOT_FOUND);
+      sendError(res, "Fee scheme not found", {}, STATUS.NOT_FOUND);
       return;
     }
-    const events = await prisma.event.findMany({
-      where: { feeSchemaId: validatedParams.id },
-      select: { id: true },
+    const events = await prisma.events.findMany({
+      where: { idFeeScheme: validatedParams.id },
+      select: { idEvent: true },
     });
     if (events.length > 0) {
       sendError(
         res,
-        "Cannot delete fee schema with associated events",
+        "Cannot delete fee scheme with associated events",
         {},
         STATUS.BAD_REQUEST
       );
       return;
     }
-    await prisma.feeSchema.delete({
-      where: { id: validatedParams.id },
+    await prisma.feeScheme.delete({
+      where: { idFeeScheme: validatedParams.id },
     });
-    sendSuccess(res, {}, "Fee schema deleted successfully", STATUS.OK);
+    sendSuccess(res, {}, "Fee scheme deleted successfully", STATUS.OK);
   } catch (error) {
-    console.error("Error deleting fee schema:", error);
+    console.error("Error deleting fee scheme:", error);
     sendError(
       res,
-      "Failed to delete fee schema",
+      "Failed to delete fee scheme",
       {},
       STATUS.INTERNAL_SERVER_ERROR
     );
@@ -427,23 +429,23 @@ const updateFeeSchema = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const feeSchema = await prisma.feeSchema.findUnique({
-      where: { id: validatedParams.id, createdById: req.user.id },
-      select: { id: true },
+    const feeSchema = await prisma.feeScheme.findUnique({
+      where: { idFeeScheme: validatedParams.id, creatorId: req.user.id },
+      select: { idFeeScheme: true },
     });
     if (!feeSchema) {
-      sendError(res, "Fee schema not found", {}, STATUS.NOT_FOUND);
+      sendError(res, "Fee scheme not found", {}, STATUS.NOT_FOUND);
       return;
     }
-    const updatedFeeSchema = await prisma.feeSchema.update({
-      where: { id: validatedParams.id },
+    const updatedFeeScheme = await prisma.feeScheme.update({
+      where: { idFeeScheme: validatedParams.id },
       data: {
         ...validatedData,
       },
     });
     sendSuccess(
       res,
-      updatedFeeSchema,
+      updatedFeeScheme,
       "Fee schema updated successfully",
       STATUS.OK
     );
@@ -468,11 +470,11 @@ const createPrizeSchema = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const prizeSchema = await prisma.prizeSchema.create({
+    const prizeScheme = await prisma.prizeScheme.create({
       data: {
-        name: validatedData.name,
-        createdById: req.user.id,
-        distributions: {
+        prizeName: validatedData.name,
+        creatorId: req.user.id,
+        prizeSchemeItems: {
           createMany: {
             data: validatedData.distributions.map((distribution) => ({
               fromPosition: distribution.fromPosition,
@@ -485,15 +487,15 @@ const createPrizeSchema = async (req: Request, res: Response) => {
     });
     sendSuccess(
       res,
-      prizeSchema,
-      "Prize schema created successfully",
+      prizeScheme,
+      "Prize scheme created successfully",
       STATUS.CREATED
     );
   } catch (error) {
-    console.error("Error creating prize schema:", error);
+    console.error("Error creating prize scheme:", error);
     sendError(
       res,
-      "Failed to create prize schema",
+      "Failed to create prize scheme",
       {},
       STATUS.INTERNAL_SERVER_ERROR
     );
@@ -506,24 +508,24 @@ const getPrizeSchemas = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const prizeSchema = await prisma.prizeSchema.findMany({
-      where: { createdById: req.user.id },
+    const prizeScheme = await prisma.prizeScheme.findMany({
+      where: { creatorId: req.user.id },
       select: {
-        id: true,
-        name: true,
+        idPrizeScheme: true,
+        prizeName: true,
       },
     });
     sendSuccess(
       res,
-      prizeSchema,
-      "Prize schemas retrieved successfully",
+      prizeScheme,
+      "Prize schemes retrieved successfully",
       STATUS.OK
     );
   } catch (error) {
-    console.error("Error retrieving prize schemas:", error);
+    console.error("Error retrieving prize schemes:", error);
     sendError(
       res,
-      "Failed to retrieve prize schemas",
+      "Failed to retrieve prize schemes",
       {},
       STATUS.INTERNAL_SERVER_ERROR
     );
@@ -540,12 +542,12 @@ const getPrizeSchema = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const prizeSchema = await prisma.prizeSchema.findUnique({
-      where: { id: validatedParams.id, createdById: req.user.id },
+    const prizeScheme = await prisma.prizeScheme.findUnique({
+      where: { idPrizeScheme: validatedParams.id, creatorId: req.user.id },
       select: {
-        id: true,
-        name: true,
-        distributions: {
+        idPrizeScheme: true,
+        prizeName: true,
+        prizeSchemeItems: {
           select: {
             fromPosition: true,
             toPosition: true,
@@ -554,21 +556,21 @@ const getPrizeSchema = async (req: Request, res: Response) => {
         },
       },
     });
-    if (!prizeSchema) {
-      sendError(res, "Prize schema not found", {}, STATUS.NOT_FOUND);
+    if (!prizeScheme) {
+      sendError(res, "Prize scheme not found", {}, STATUS.NOT_FOUND);
       return;
     }
     sendSuccess(
       res,
-      prizeSchema,
-      "Prize schema retrieved successfully",
+      prizeScheme,
+      "Prize scheme retrieved successfully",
       STATUS.OK
     );
   } catch (error) {
-    console.error("Error retrieving prize schema:", error);
+    console.error("Error retrieving prize scheme:", error);
     sendError(
       res,
-      "Failed to retrieve prize schema",
+      "Failed to retrieve prize scheme",
       {},
       STATUS.INTERNAL_SERVER_ERROR
     );
@@ -590,19 +592,19 @@ const updatePrizeSchema = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const prizeSchema = await prisma.prizeSchema.findUnique({
-      where: { id: validatedParams.id, createdById: req.user.id },
-      select: { id: true },
+    const prizeScheme = await prisma.prizeScheme.findUnique({
+      where: { idPrizeScheme: validatedParams.id, creatorId: req.user.id },
+      select: { idPrizeScheme: true },
     });
-    if (!prizeSchema) {
-      sendError(res, "Prize schema not found", {}, STATUS.NOT_FOUND);
+    if (!prizeScheme) {
+      sendError(res, "Prize scheme not found", {}, STATUS.NOT_FOUND);
       return;
     }
-    const updatedPrizeSchema = await prisma.prizeSchema.update({
-      where: { id: validatedParams.id },
+    const updatedPrizeScheme = await prisma.prizeScheme.update({
+      where: { idPrizeScheme: validatedParams.id },
       data: {
-        name: validatedData.name,
-        distributions: {
+        prizeName: validatedData.name,
+        prizeSchemeItems: {
           deleteMany: {},
           createMany: {
             data: validatedData.distributions.map((distribution) => ({
@@ -616,15 +618,15 @@ const updatePrizeSchema = async (req: Request, res: Response) => {
     });
     sendSuccess(
       res,
-      updatedPrizeSchema,
-      "Prize schema updated successfully",
+      updatedPrizeScheme,
+      "Prize scheme updated successfully",
       STATUS.OK
     );
   } catch (error) {
-    console.error("Error updating prize schema:", error);
+    console.error("Error updating prize scheme:", error);
     sendError(
       res,
-      "Failed to update prize schema",
+      "Failed to update prize scheme",
       {},
       STATUS.INTERNAL_SERVER_ERROR
     );
@@ -641,41 +643,41 @@ const deletePrizeSchema = async (req: Request, res: Response) => {
     return;
   }
   try {
-    const prizeSchema = await prisma.prizeSchema.findUnique({
-      where: { id: validatedParams.id, createdById: req.user.id },
-      select: { id: true },
+    const prizeScheme = await prisma.prizeScheme.findUnique({
+      where: { idPrizeScheme: validatedParams.id, creatorId: req.user.id },
+      select: { idPrizeScheme: true },
     });
-    if (!prizeSchema) {
-      sendError(res, "Prize schema not found", {}, STATUS.NOT_FOUND);
+    if (!prizeScheme) {
+      sendError(res, "Prize scheme not found", {}, STATUS.NOT_FOUND);
       return;
     }
-    const events = await prisma.event.findMany({
+    const events = await prisma.events.findMany({
       where: {
         OR: [
-          { hotspot1PrizeSchemaId: validatedParams.id },
-          { hotspot2PrizeSchemaId: validatedParams.id },
-          { hotspot3PrizeSchemaId: validatedParams.id },
-          { finalRacePrizeSchemaId: validatedParams.id },
-          { avgWinnerPrizeSchemaId: validatedParams.id },
+          { idHotSpot1PrizeScheme: validatedParams.id },
+          { idHotSpot2PrizeScheme: validatedParams.id },
+          { idHotSpot3PrizeScheme: validatedParams.id },
+          { idFinalPrizeScheme: validatedParams.id },
+          { idHotSpotAvgPrizeScheme: validatedParams.id },
         ],
       },
-      select: { id: true },
+      select: { idEvent: true },
     });
     if (events.length > 0) {
       sendError(
         res,
-        "Cannot delete prize schema with associated events",
+        "Cannot delete prize scheme with associated events",
         {},
         STATUS.BAD_REQUEST
       );
       return;
     }
-    await prisma.prizeSchema.delete({
-      where: { id: validatedParams.id },
+    await prisma.prizeScheme.delete({
+      where: { idPrizeScheme: validatedParams.id },
     });
-    sendSuccess(res, {}, "Prize schema deleted successfully", STATUS.OK);
+    sendSuccess(res, {}, "Prize scheme deleted successfully", STATUS.OK);
   } catch (error) {
-    console.error("Error deleting prize schema:", error);
+    console.error("Error deleting prize scheme:", error);
     sendError(
       res,
       "Failed to delete prize schema",
