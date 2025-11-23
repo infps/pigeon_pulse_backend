@@ -1,8 +1,7 @@
 import { z } from "zod";
 
 const userSignupSchema = z.object({
-  firstName: z.string().min(1, "First Name is required"),
-  lastName: z.string().min(1, "Last Name is required"),
+  name: z.string().min(1, "Name is required"),
   email: z.email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters long"),
 });
@@ -25,7 +24,7 @@ const organizerLoginSchema = z.object({
 
 const feeSchemaCreate = z
   .object({
-    name: z.string().min(1, "Fee name is required"),
+    feeSchemeName: z.string().min(1, "Fee name is required"),
     entryFee: z.number().min(0, "Entry fee must be a non-negative number"),
     isRefundable: z.number().int().min(0).max(1),
     minEntryFees: z
@@ -178,8 +177,8 @@ const createBettingSchemaBody = z.object({
 });
 
 const createPrizeSchemaBody = z.object({
-  name: z.string().min(1, "Prize name is required"),
-  distributions: z.array(
+  prizeName: z.string().min(1, "Prize name is required"),
+  prizeSchemeItems: z.array(
     z.object({
       fromPosition: z.number().int().min(1, "From position must be at least 1"),
       toPosition: z.number().int().min(1, "To position must be at least 1"),
@@ -192,7 +191,7 @@ const createPrizeSchemaBody = z.object({
 });
 
 const idParamsSchema = z.object({
-  id: z.number().int().min(0, "ID must be a positive integer"),
+  id: z.coerce.number().int().min(1, "ID must be a positive integer"),
 });
 
 const queryParamsSchema = z.object({
@@ -203,7 +202,7 @@ const createEventSchemaBody = z.object({
   eventName: z.string().min(1, "Event name is required"),
   eventShortName: z.string().min(1, "Short name is required"),
   eventDate: z.coerce.date(),
-  type: z.number().int(),
+  eventType: z.number().int(),
   isOpen: z.number().int().min(0).max(1),
   idFeeScheme:z.number().int(),
   idFinalPrizeScheme: z.int(),

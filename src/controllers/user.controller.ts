@@ -135,23 +135,25 @@ const getBreedersAddressBook = async (req: Request, res: Response) => {
     sendError(res, "Invalid query parameter", {}, STATUS.BAD_REQUEST);
     return;
   }
-  if (eventId && typeof eventId !== "number") {
+  if (eventId && typeof eventId !== "string") {
     sendError(res, "Invalid eventId parameter", {}, STATUS.BAD_REQUEST);
     return;
   }
-  if (status && typeof status !== "number") {
+  if (status && typeof status !== "string") {
     sendError(res, "Invalid status parameter", {}, STATUS.BAD_REQUEST);
     return;
   }
+  const eventIdNumber = eventId ? parseInt(eventId, 10) : undefined;
+  const statusNumber = status ? parseInt(status, 10) : undefined;
   try {
     const breeders = await prisma.breeders.findMany({
       where: {
-        ...(status ? { status: parseInt(status, 10) } : {}),
+        ...(status ? { status: statusNumber } : {}),
         ...(eventId
           ? {
               eventInventories: {
                 some: {
-                  idEvent: parseInt(eventId, 10),
+                  idEvent: eventIdNumber,
                 },
               },
             }

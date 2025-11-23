@@ -249,7 +249,7 @@ const listEventInventory = async (req: Request, res: Response) => {
         { breeder: { email: { contains: query.q, mode: "insensitive" } } },
       ];
     }
-    queryConditions.eventId = params.id;
+    queryConditions.idEvent = params.id;
     queryConditions.event = {
       creatorId: req.user.id,
     };

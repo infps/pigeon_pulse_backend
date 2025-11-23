@@ -22,7 +22,7 @@ const createFeeSchema = async (req: Request, res: Response) => {
   try {
     const feeScheme = await prisma.feeScheme.create({
       data: {
-        feeSchemeName: validatedData.name,
+        feeSchemeName: validatedData.feeSchemeName,
         entryFee: validatedData.entryFee,
         feesCutPercent: validatedData.feesCutPercent,
         hotSpot1Fee: validatedData.hotSpot1Fee,
@@ -440,7 +440,28 @@ const updateFeeSchema = async (req: Request, res: Response) => {
     const updatedFeeScheme = await prisma.feeScheme.update({
       where: { idFeeScheme: validatedParams.id },
       data: {
-        ...validatedData,
+        feeSchemeName: validatedData.feeSchemeName,
+        entryFee: validatedData.entryFee,
+        feesCutPercent: validatedData.feesCutPercent,
+        hotSpot1Fee: validatedData.hotSpot1Fee,
+        hotSpot2Fee: validatedData.hotSpot2Fee,
+        hotSpot3Fee: validatedData.hotSpot3Fee,
+        hotSpotFinalFee: validatedData.hotSpotFinalFee,
+        maxBackupBirdCount: validatedData.maxBackupBirdCount,
+        maxBirdCount: validatedData.maxBirdCount,
+        minEntryFees: validatedData.minEntryFees,
+        creatorId: req.user.id,
+        isFloatingBackup: validatedData.isFloatingBackup,
+        isRefundable: validatedData.isRefundable,
+        perchFeeItems:{
+          deleteMany:{},
+          createMany:{
+            data: validatedData.perchFees?.map((item) => ({
+              birdNo: item.birdNo,
+              perchFee: item.perchFee,
+            })) || [],
+          },
+        }
       },
     });
     sendSuccess(
@@ -472,11 +493,11 @@ const createPrizeSchema = async (req: Request, res: Response) => {
   try {
     const prizeScheme = await prisma.prizeScheme.create({
       data: {
-        prizeName: validatedData.name,
+        prizeName: validatedData.prizeName,
         creatorId: req.user.id,
         prizeSchemeItems: {
           createMany: {
-            data: validatedData.distributions.map((distribution) => ({
+            data: validatedData.prizeSchemeItems.map((distribution) => ({
               fromPosition: distribution.fromPosition,
               toPosition: distribution.toPosition,
               prizeValue: distribution.prizeValue,
@@ -603,15 +624,15 @@ const updatePrizeSchema = async (req: Request, res: Response) => {
     const updatedPrizeScheme = await prisma.prizeScheme.update({
       where: { idPrizeScheme: validatedParams.id },
       data: {
-        prizeName: validatedData.name,
+        prizeName: validatedData.prizeName,
         prizeSchemeItems: {
           deleteMany: {},
           createMany: {
-            data: validatedData.distributions.map((distribution) => ({
+            data: validatedData.prizeSchemeItems.map((distribution) => ({
               fromPosition: distribution.fromPosition,
               toPosition: distribution.toPosition,
               prizeValue: distribution.prizeValue,
-            })),
+            })) || [],
           },
         },
       },

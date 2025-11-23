@@ -29,12 +29,17 @@ const breedersignup = async (req: Request, res: Response) => {
       sendError(res, "User already exists", {}, STATUS.CONFLICT);
       return;
     }
+    // Split name into firstName and lastName
+    const nameParts = validatedData.name.trim().split(/\s+/);
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+    
     const user = await prisma.breeders.create({
       data: {
         loginName: validatedData.email,
         loginPassword: validatedData.password,
-        firstName: validatedData.firstName,
-        lastName: validatedData.lastName,
+        firstName: firstName,
+        lastName: lastName,
       },
       omit: {
         loginPassword: true,

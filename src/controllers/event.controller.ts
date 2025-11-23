@@ -25,7 +25,7 @@ const createEvent = async (req: Request, res: Response) => {
         eventName: validatedData.eventName,
         eventShortName: validatedData.eventShortName,
         eventDate: validatedData.eventDate,
-        eventType: validatedData.type,
+        eventType: validatedData.eventType,
         isOpen: validatedData.isOpen,
         idFeeScheme: validatedData.idFeeScheme,
         idFinalPrizeScheme: validatedData.idFinalPrizeScheme,
@@ -83,7 +83,7 @@ const updateEvent = async (req: Request, res: Response) => {
         eventName: validatedData.eventName,
         eventShortName: validatedData.eventShortName,
         eventDate: validatedData.eventDate,
-        eventType: validatedData.type,
+        eventType: validatedData.eventType,
         isOpen: validatedData.isOpen,
         idFeeScheme: validatedData.idFeeScheme,
         idHotSpotAvgPrizeScheme: validatedData.idHotSpotAvgPrizeScheme,
@@ -151,8 +151,8 @@ const listEventsByCreator = async (req: Request, res: Response) => {
   try {
     const events = await prisma.events.findMany({
       where: { creatorId: req.user.id },
-      skip: (pagination.page - 1) * pagination.limit,
-      take: pagination.limit,
+      // skip: (pagination.page - 1) * pagination.limit,
+      // take: pagination.limit,
     });
     const totalCount = await prisma.events.count({
       where: { creatorId: req.user.id },
