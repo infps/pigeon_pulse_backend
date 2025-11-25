@@ -6,6 +6,9 @@ import {
   getBreedersAddressBook,
   getBreedersByEvent,
   updateBreederProfile,
+  updateBreederByAdmin,
+  getBreederById,
+  createBreeder,
 } from "../controllers/user.controller";
 
 const userRouter = Router();
@@ -29,4 +32,23 @@ userRouter.get(
 );
 
 userRouter.get("/breeders", requireRole(["ADMIN"]), getBreedersAddressBook);
+
+userRouter.get(
+  "/breeders/:breederId",
+  requireRole(["ADMIN"]),
+  getBreederById
+);
+
+userRouter.post(
+  "/breeders",
+  requireRole(["ADMIN"]),
+  createBreeder
+);
+
+userRouter.put(
+  "/breeders/:breederId",
+  requireRole(["ADMIN"]),
+  updateBreederByAdmin
+);
+
 export default userRouter;

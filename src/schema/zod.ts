@@ -241,11 +241,20 @@ const updateUserSchema = z.object({
   phone: z.string().min(1, "Phone number is required").optional(),
   cell: z.string().optional(),
   fax: z.string().optional(),
+  email: z.email("Invalid email address").optional(),
   email2: z.email("Invalid email address").optional(),
   webAddress: z.string().optional(),
+  socialSecurityNumber: z.string().optional(),
+  status: z.number().int().min(0).max(2).optional(),
+  statusDate: z.coerce.date().optional(),
+  note: z.string().optional(),
+  loginName: z.string().min(1, "Login name is required").optional(),
+  loginPassword: z.string().min(6, "Password must be at least 6 characters long").optional(),
   sms: z.string().optional(),
-  ssn: z.string().optional(),
   taxNumber: z.string().optional(),
+  defNameAgn: z.string().optional(),
+  defNameAs: z.string().optional(),
+  isDefaultAddress1: z.number().int().min(0).max(1).optional(),
 });
 
 const updateBirdSchema = z.object({
