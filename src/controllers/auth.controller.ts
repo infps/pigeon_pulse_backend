@@ -29,17 +29,23 @@ const breedersignup = async (req: Request, res: Response) => {
       sendError(res, "User already exists", {}, STATUS.CONFLICT);
       return;
     }
-    // Split name into firstName and lastName
-    const nameParts = validatedData.name.trim().split(/\s+/);
-    const firstName = nameParts[0] || "";
-    const lastName = nameParts.slice(1).join(" ") || "";
-    
+    const maxNumber = await prisma.breeders.findFirst({
+      orderBy: {
+        number: "desc",
+      },
+      select: {
+        number: true,
+      },
+    });
+    const number = maxNumber && maxNumber.number ? maxNumber.number + 1 : 1;
     const user = await prisma.breeders.create({
       data: {
+        number: number,
+        status: 0,
         loginName: validatedData.email,
         loginPassword: validatedData.password,
-        firstName: firstName,
-        lastName: lastName,
+        firstName: validatedData.firstName,
+        lastName: validatedData.lastName,
       },
       omit: {
         loginPassword: true,
@@ -127,13 +133,13 @@ const adminLogin = async (req: Request, res: Response) => {
   try {
     const user = await prisma.organizerData.findFirst({
       where: { email: validatedData.email },
-      select: { email: true, password: true,id: true },
+      select: { email: true, password: true, id: true },
     });
     if (!user) {
       sendError(res, "Invalid Email or Password", {}, STATUS.UNAUTHORIZED);
       return;
     }
-    
+
     if (user.password !== validatedData.password) {
       sendError(res, "Invalid Email or Password", {}, STATUS.UNAUTHORIZED);
       return;
