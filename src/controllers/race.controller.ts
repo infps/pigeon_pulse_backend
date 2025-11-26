@@ -47,7 +47,7 @@ const createRace = async (req: Request, res: Response) => {
         idEvent: true,
         eventInventories: {
           select: {
-            eventInventoryItems: { select: { idEventInventory: true } },
+            eventInventoryItems: { select: { idEventInventoryItem: true } },
           },
         },
       },
@@ -87,10 +87,11 @@ const createRace = async (req: Request, res: Response) => {
 
       const raceItems = event.eventInventories.flatMap((inventory) =>
         inventory.eventInventoryItems.map((item) => ({
-          idInventoryItem: item.idEventInventory,
-          raceId: race.idRace,
+          idInventoryItem: item.idEventInventoryItem,
+          idRace: race.idRace,
         }))
       );
+      console.log(raceItems[0]?.idInventoryItem)
       await tx.raceItem.createMany({
         data: raceItems,
       });
@@ -543,10 +544,10 @@ const updateRaceItem = async (req: Request, res: Response) => {
 
   const raceItemIdInt = parseInt(raceItemId, 10);
 
-  const { distBasketId, raceBasketId, distBasketed } = req.body as {
-    distBasketId?: number | null;
+  const { loftBasketId, raceBasketId, loftBasketed } = req.body as {
+    loftBasketId?: number | null;
     raceBasketId?: number | null;
-    distBasketed?: number | null;
+    loftBasketed?: number | null;
   };
 
   try {
@@ -560,14 +561,14 @@ const updateRaceItem = async (req: Request, res: Response) => {
     }
 
     // Validate baskets belong to the race
-    if (distBasketId) {
+    if (loftBasketId) {
       const basket = await prisma.basket.findUnique({
-        where: { idBasket: distBasketId },
+        where: { idBasket: loftBasketId },
       });
       if (!basket || basket.idRace !== params.id || basket.isRaceBasket) {
         sendError(
           res,
-          "Invalid dist basket for this race",
+          "Invalid loft basket for this race",
           {},
           STATUS.BAD_REQUEST
         );
@@ -598,9 +599,9 @@ const updateRaceItem = async (req: Request, res: Response) => {
       raceBasketTime?: Date | null;
     } = {};
 
-    if (distBasketId !== undefined) {
-      updateData.distBasketId = distBasketId;
-      updateData.distBasketed = distBasketed ?? (distBasketId ? 1 : 0);
+    if (loftBasketId !== undefined) {
+      updateData.loftBasketId = loftBasketId;
+      updateData.loftBasketed = loftBasketed ?? (loftBasketId ? 1 : 0);
     }
 
     if (raceBasketId !== undefined) {

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Payments" ADD COLUMN     "TRANSACTION_ID" TEXT;

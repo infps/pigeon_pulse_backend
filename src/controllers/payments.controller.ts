@@ -55,7 +55,7 @@ const capturePayment = async (req: Request, res: Response) => {
 
     const paymentRecord = await prisma.payments.findUnique({
       where: { transactionId: validatedData.orderId },
-      select: { eventInventoryId: true, id: true },
+      select: { idEventInventory: true, idPayment: true },
     });
 
     if (!paymentRecord) {
@@ -63,17 +63,12 @@ const capturePayment = async (req: Request, res: Response) => {
     }
     if (captureStatus === "COMPLETED") {
       await prisma.$transaction(async (tx) => {
-        await tx.payment.update({
+        await tx.payments.update({
           where: { transactionId: validatedData.orderId },
           data: {
-            status: "COMPLETED",
+            status: 1,
             transactionId: captureId,
           },
-        });
-
-        await tx.eventInventory.update({
-          where: { id: paymentRecord.eventInventoryId },
-          data: {  },
         });
       });
 
@@ -86,10 +81,10 @@ const capturePayment = async (req: Request, res: Response) => {
     }
 
     if (captureStatus === "PENDING") {
-      await prisma.payment.update({
+      await prisma.payments.update({
         where: { transactionId: validatedData.orderId },
         data: {
-          status: "PENDING",
+          status: 2,
           transactionId: captureId,
         },
       });
@@ -101,16 +96,16 @@ const capturePayment = async (req: Request, res: Response) => {
       );
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.payment.update({
-        where: { transactionId: validatedData.orderId },
-        data: { status: "FAILED" },
-      });
+    // await prisma.$transaction(async (tx) => {
+    //   await tx.payments.update({
+    //     where: { transactionId: validatedData.orderId },
+    //     data: { status: 3 },
+    //   });
 
-      await tx.eventInventory.delete({
-        where: { id: paymentRecord.eventInventoryId },
-      });
-    });
+    //   await tx.eventInventory.delete({
+    //     where: { idEventInventory: paymentRecord.idEventInventory as number },
+    //   });
+    // });
 
     return sendError(res, "Payment failed", {}, STATUS.BAD_REQUEST);
   } catch (error) {
@@ -183,13 +178,13 @@ const createPaymentOrder = async (req: Request, res: Response) => {
   }
 
   try {
-    const payment = await prisma.payment.findUnique({
+    const payment = await prisma.payments.findUnique({
       where: {
-        id: paymentId,
+        idPayment: parseInt(paymentId),
         breederId: req.user.id,
       },
       select: {
-        id: true,
+        idPayment: true,
         paymentValue: true,
         status: true,
         type: true,

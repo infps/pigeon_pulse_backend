@@ -323,12 +323,12 @@ const createRaceSchema = z.object({
   endTime: z.coerce.date(),
   sunrise: z.string(),
   sunset: z.string(),
-  weather: z.string().min(1, "Weather is required"),
-  wind: z.string().min(1, "Wind is required"),
-  temperature: z.string().min(1, "Temperature is required"),
-  arrivalWeather: z.string().min(1, "Arrival weather is required"),
-  arrivalWind: z.string().min(1, "Arrival wind is required"),
-  arrivalTemperature: z.string().min(1, "Arrival temperature is required"),
+  weather: z.string().optional(),
+  wind: z.string().optional(),
+  temperature: z.string().optional(),
+  arrivalWeather: z.string().optional(),
+  arrivalWind: z.string().optional(),
+  arrivalTemperature: z.string().optional(),
 });
 
 export {
