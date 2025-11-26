@@ -59,14 +59,14 @@ const breederlogin = async (req: Request, res: Response) => {
 
   try {
     const user = await prisma.breeders.findFirst({
-      where: { email: validatedData.email },
+      where: { loginName: validatedData.email },
       select: {
         idBreeder: true,
         loginPassword: true,
         status: true,
         firstName: true,
         lastName: true,
-        email: true,
+        loginName: true,
       },
     });
     if (!user) {

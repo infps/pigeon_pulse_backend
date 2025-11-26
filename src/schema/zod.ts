@@ -260,7 +260,7 @@ const updateUserSchema = z.object({
 const updateBirdSchema = z.object({
   birdName: z.string().min(1, "Bird name is required").optional(),
   color: z.string().min(1, "Color is required").optional(),
-  sex: z.number().int().min(0).max(1).optional(),
+  sex: z.number().int().min(0).max(2).optional(),
 });
 
 const eventsQuerySchema = z.object({
@@ -276,7 +276,7 @@ const eventsQuerySchema = z.object({
 const addBirdSchema = z.object({
   birdName: z.string().min(1, "Bird name is required"),
   color: z.string().min(1, "Color is required"),
-  sex: z.number().int().min(0).max(1),
+  sex: z.number().int().min(0).max(2),
 });
 
 const createOrderSchema = z.object({
