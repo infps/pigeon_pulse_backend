@@ -62,7 +62,7 @@ const createEventInventory = async (req: Request, res: Response) => {
     let totalAmount = 0;
     for (let i = 1; i <= validatedData.birds.length; i++) {
       totalAmount +=
-        (doesEventExist.feeScheme?.perchFeeItems[i - 1]?.perchFee || 0);
+        doesEventExist.feeScheme?.perchFeeItems[i - 1]?.perchFee || 0;
     }
 
     const birds = await prisma.birds.findMany({
@@ -130,55 +130,58 @@ const createEventInventory = async (req: Request, res: Response) => {
           reservedBirds: validatedData.birds.length,
           idBreeder: breeder.id,
           idEvent: validatedData.eventId,
+          signInDate: new Date(),
           eventInventoryItems: {
-            create: validatedData.birds.map((bird) => ({
-              birdId: bird,
-              idEvent: validatedData.eventId,
-              perchFeeValue: doesEventExist.feeScheme?.perchFeeItems.find(
-                (item, index) => index === validatedData.birds.indexOf(bird)
-              )?.perchFee,
-              entryFeeValue: doesEventExist.feeScheme?.entryFee,
-              hotSpotFeeValue: doesEventExist.feeScheme?.hotSpot1Fee,
-            })),
+            createMany: {
+              data: validatedData.birds.map((bird) => ({
+                idBird: bird,
+                perchFeeValue: doesEventExist.feeScheme?.perchFeeItems.find(
+                  (item, index) => index === validatedData.birds.indexOf(bird)
+                )?.perchFee,
+                entryFeeValue: doesEventExist.feeScheme?.entryFee,
+              })),
+            },
           },
         },
       });
 
       await tx.payments.create({
         data: {
+          idBreeder: breeder.id,
           paymentDate: new Date(),
           paymentType: 0,
           paymentMethod: 0,
           paymentValue: totalAmount,
-          // transactionId: orderData.id,
+          status:0,
+          transactionId: orderData.id,
           paymentTimestamp: new Date(),
           idEventInventory: inventory.idEventInventory,
         },
       });
 
       // Create due payment entries for other fees
-    //   const feeTypes = [
-    //     { type: "ENTRY_FEE", amount: doesEventExist.feeScheme?.entryFee },
-    //     { type: "HOTSPOT_FEE_1", amount: doesEventExist.feeSchema.hotSpot1Fee },
-    //     { type: "HOTSPOT_FEE_2", amount: doesEventExist.feeSchema.hotSpot2Fee },
-    //     { type: "HOTSPOT_FEE_3", amount: doesEventExist.feeSchema.hotSpot3Fee },
-    //   ];
+      //   const feeTypes = [
+      //     { type: "ENTRY_FEE", amount: doesEventExist.feeScheme?.entryFee },
+      //     { type: "HOTSPOT_FEE_1", amount: doesEventExist.feeSchema.hotSpot1Fee },
+      //     { type: "HOTSPOT_FEE_2", amount: doesEventExist.feeSchema.hotSpot2Fee },
+      //     { type: "HOTSPOT_FEE_3", amount: doesEventExist.feeSchema.hotSpot3Fee },
+      //   ];
 
-    //   for (const feeType of feeTypes) {
-    //     if (feeType.amount && feeType.amount > 0) {
-    //       await tx.payment.create({
-    //         data: {
-    //           paymentMethod: "BANK_TRANSFER",
-    //           type: feeType.type as any,
-    //           paymentValue: feeType.amount * validatedData.birds.length,
-    //           status: "PENDING",
-    //           breederId: breeder.id,
-    //           eventInventoryId: inventory.id,
-    //         },
-    //       });
-    //     }
-    //   }
-    // });
+      //   for (const feeType of feeTypes) {
+      //     if (feeType.amount && feeType.amount > 0) {
+      //       await tx.payment.create({
+      //         data: {
+      //           paymentMethod: "BANK_TRANSFER",
+      //           type: feeType.type as any,
+      //           paymentValue: feeType.amount * validatedData.birds.length,
+      //           status: "PENDING",
+      //           breederId: breeder.id,
+      //           eventInventoryId: inventory.id,
+      //         },
+      //       });
+      //     }
+      //   }
+      // });
     });
     sendSuccess(
       res,

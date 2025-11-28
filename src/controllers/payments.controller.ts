@@ -128,21 +128,21 @@ const getMyPayments = async (req: Request, res: Response) => {
     const breederId = req.user.id;
     const payments = await prisma.payments.findMany({
       where: {
-        breederId: breederId,
+        idBreeder: breederId,
       },
       select: {
-        id: true,
+        idPayment: true,
         paymentDate: true,
         paymentValue: true,
         status: true,
-        type: true,
+        paymentType: true,
         eventInventory: {
           select: {
             event: {
               select: {
-                id: true,
-                name: true,
-                date: true,
+                idEvent: true,
+                eventName: true,
+                eventDate: true,
               },
             },
           },
@@ -181,18 +181,18 @@ const createPaymentOrder = async (req: Request, res: Response) => {
     const payment = await prisma.payments.findUnique({
       where: {
         idPayment: parseInt(paymentId),
-        breederId: req.user.id,
+        idBreeder: req.user.id,
       },
       select: {
         idPayment: true,
         paymentValue: true,
         status: true,
-        type: true,
+        paymentType: true,
         eventInventory: {
           select: {
             event: {
               select: {
-                name: true,
+                eventName: true,
               },
             },
           },
@@ -204,7 +204,7 @@ const createPaymentOrder = async (req: Request, res: Response) => {
       return sendError(res, "Payment not found", {}, STATUS.NOT_FOUND);
     }
 
-    if (payment.status !== "PENDING") {
+    if (payment.status!=0) {
       return sendError(
         res,
         "Payment is not pending",
@@ -236,21 +236,21 @@ const createPaymentOrder = async (req: Request, res: Response) => {
             {
               items: [
                 {
-                  name: `${payment.type} - ${payment.eventInventory?.event?.name || "Event"}`,
+                  name: `${payment.paymentType} - ${payment.eventInventory?.event?.eventName || "Event"}`,
                   unit_amount: {
                     currency_code: "USD",
-                    value: payment.paymentValue.toFixed(2),
+                    value: payment.paymentValue?.toFixed(2),
                   },
                   quantity: "1",
                 },
               ],
               amount: {
                 currency_code: "USD",
-                value: payment.paymentValue.toFixed(2),
+                value: payment.paymentValue?.toFixed(2),
                 breakdown: {
                   item_total: {
                     currency_code: "USD",
-                    value: payment.paymentValue.toFixed(2),
+                    value: payment.paymentValue?.toFixed(2),
                   },
                 },
               },
@@ -267,8 +267,8 @@ const createPaymentOrder = async (req: Request, res: Response) => {
     const orderData = JSON.parse(paypalOrder.body);
 
     // Update payment with the new PayPal order ID
-    await prisma.payment.update({
-      where: { id: paymentId },
+    await prisma.payments.update({
+      where: { idPayment: parseInt(paymentId) },
       data: {
         transactionId: orderData.id,
         paymentDate: new Date(),
@@ -292,4 +292,72 @@ const createPaymentOrder = async (req: Request, res: Response) => {
   }
 };
 
-export { capturePayment, getMyPayments, createPaymentOrder };
+const cancelPayment = async (req: Request, res: Response) => {
+  if (!req.user) {
+    return sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+  }
+
+  const validatedData = validateSchema(req, res, "body", paypalPaymentSchema);
+  if (!validatedData) return;
+
+  try {
+    const payment = await prisma.payments.findUnique({
+      where: { 
+        transactionId: validatedData.orderId,
+        idBreeder: req.user.id,
+      },
+      select: { 
+        idEventInventory: true, 
+        idPayment: true,
+        status: true,
+      },
+    });
+
+    if (!payment) {
+      return sendError(res, "Payment not found", {}, STATUS.NOT_FOUND);
+    }
+
+    if (payment.status !== 0) {
+      return sendError(
+        res,
+        "Only pending payments can be cancelled",
+        {},
+        STATUS.BAD_REQUEST
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Delete event inventory items first (due to foreign key constraints)
+      await tx.eventInventoryItem.deleteMany({
+        where: { idEventInventory: payment.idEventInventory as number },
+      });
+
+      // Delete event inventory
+      await tx.eventInventory.delete({
+        where: { idEventInventory: payment.idEventInventory as number },
+      });
+
+      // Delete payment
+      await tx.payments.delete({
+        where: { idPayment: payment.idPayment },
+      });
+    });
+
+    return sendSuccess(
+      res,
+      {},
+      "Payment cancelled and registration removed successfully",
+      STATUS.OK
+    );
+  } catch (error) {
+    console.error("Error cancelling payment:", error);
+    return sendError(
+      res,
+      "Failed to cancel payment",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+export { capturePayment, getMyPayments, createPaymentOrder, cancelPayment };
