@@ -268,7 +268,7 @@ const getBreedersAddressBook = async (req: Request, res: Response) => {
     sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
     return;
   }
-  const { q, eventId, status } = req.query;
+  const { q, eventId, status, searchField } = req.query;
 
   if (q && typeof q !== "string") {
     sendError(res, "Invalid query parameter", {}, STATUS.BAD_REQUEST);
@@ -282,9 +282,77 @@ const getBreedersAddressBook = async (req: Request, res: Response) => {
     sendError(res, "Invalid status parameter", {}, STATUS.BAD_REQUEST);
     return;
   }
+  if (searchField && typeof searchField !== "string") {
+    sendError(res, "Invalid searchField parameter", {}, STATUS.BAD_REQUEST);
+    return;
+  }
   const eventIdNumber = eventId ? parseInt(eventId, 10) : undefined;
   const statusNumber = status ? parseInt(status, 10) : undefined;
+  const field = searchField || "idBreeder";
+  
   try {
+    // Build the where clause based on searchField
+    let searchCondition: any = {};
+    
+    if (q) {
+      switch (field) {
+        case "idBreeder":
+          const parsedId = parseInt(q, 10);
+          if (!isNaN(parsedId)) {
+            searchCondition.idBreeder = parsedId;
+          }
+          break;
+        case "firstName":
+          searchCondition.firstName = { contains: q, mode: "insensitive" };
+          break;
+        case "lastName":
+          searchCondition.lastName = { contains: q, mode: "insensitive" };
+          break;
+        case "address":
+          searchCondition.OR = [
+            { address1: { contains: q, mode: "insensitive" } },
+            { address2: { contains: q, mode: "insensitive" } },
+          ];
+          break;
+        case "city":
+          searchCondition.OR = [
+            { city1: { contains: q, mode: "insensitive" } },
+            { city2: { contains: q, mode: "insensitive" } },
+          ];
+          break;
+        case "state":
+          searchCondition.OR = [
+            { state1: { contains: q, mode: "insensitive" } },
+            { state2: { contains: q, mode: "insensitive" } },
+          ];
+          break;
+        case "zip":
+          searchCondition.OR = [
+            { zip1: { contains: q, mode: "insensitive" } },
+            { zip2: { contains: q, mode: "insensitive" } },
+          ];
+          break;
+        case "country":
+          searchCondition.country = { contains: q, mode: "insensitive" };
+          break;
+        case "phone":
+          searchCondition.phone = { contains: q, mode: "insensitive" };
+          break;
+        case "cell":
+          searchCondition.cell = { contains: q, mode: "insensitive" };
+          break;
+        case "email":
+          searchCondition.OR = [
+            { email: { contains: q, mode: "insensitive" } },
+            { email2: { contains: q, mode: "insensitive" } },
+          ];
+          break;
+        default:
+          searchCondition.idBreeder = !isNaN(parseInt(q, 10)) ? parseInt(q, 10) : undefined;
+      }
+    }
+    console.log("Search Condition:", searchCondition);
+
     const breeders = await prisma.breeders.findMany({
       where: {
         ...(status ? { status: statusNumber } : {}),
@@ -297,42 +365,11 @@ const getBreedersAddressBook = async (req: Request, res: Response) => {
               },
             }
           : {}),
-        OR: [
-          {
-            firstName: {
-              contains: q || "",
-              mode: "insensitive",
-            },
-          },
-          {
-            lastName: {
-              contains: q || "",
-              mode: "insensitive",
-            },
-          },
-          {
-            phone: {
-              contains: q || "",
-              mode: "insensitive",
-            },
-          },
-          {
-            address1: {
-              contains: q || "",
-              mode: "insensitive",
-            },
-          },
-          {
-            email: {
-              contains: q || "",
-              mode: "insensitive",
-            },
-          },
-          {
-            number: q ? parseInt(q, 10) : undefined,
-          },
-        ],
+        ...searchCondition,
       },
+      orderBy:{
+        idBreeder: 'asc'
+      }
     });
     sendSuccess(
       res,

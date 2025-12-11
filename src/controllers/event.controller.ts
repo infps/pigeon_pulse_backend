@@ -151,6 +151,7 @@ const listEventsByCreator = async (req: Request, res: Response) => {
   try {
     const events = await prisma.events.findMany({
       where: { creatorId: req.user.id },
+      orderBy: { eventDate: "desc" },
       // skip: (pagination.page - 1) * pagination.limit,
       // take: pagination.limit,
     });
