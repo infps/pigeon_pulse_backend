@@ -91,6 +91,7 @@ model Birds {
   eventInventoryItems EventInventoryItem[]
   lostHistories       LostHistory[]
   racePhantomBirds    RacePhantomBird[]
+  rfIdScans           RfidScans[]
 
   @@map("Birds")
 }
@@ -542,6 +543,7 @@ model Race {
   raceItems          RaceItem[]
   raceItemScans      RaceItemScan[]
   racePhantomBirds   RacePhantomBird[]
+  rfidScans          RfidScans[]
 
   @@map("Race")
 }
@@ -798,4 +800,25 @@ model UserRightGroups {
   rightGroup       RightGroups? @relation(fields: [idRightGroup], references: [idRightGroup])
 
   @@map("UserRightGroups")
+}
+
+model RfidScans {
+  idRfidScan Int      @id @default(autoincrement()) @map("ID_RFID_SCAN")
+  rfidTag    String   @map("RFID_TAG")
+  scannerId  String   @map("SCANNER_ID")
+  timestamp  DateTime @default(now()) @map("TIMESTAMP")
+  processed  Boolean  @default(false) @map("PROCESSED")
+  idBird     Int?     @map("ID_BIRD")
+  idRace     Int?     @map("ID_RACE")
+  notes      String?  @map("NOTES")
+  createdAt  DateTime @default(now()) @map("CREATED_AT")
+
+  bird Birds? @relation(fields: [idBird], references: [idBird])
+  race Race?  @relation(fields: [idRace], references: [idRace])
+
+  @@index([rfidTag])
+  @@index([scannerId])
+  @@index([timestamp])
+  @@index([processed])
+  @@map("RfidScans")
 }
