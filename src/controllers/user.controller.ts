@@ -388,6 +388,138 @@ const getBreedersAddressBook = async (req: Request, res: Response) => {
   }
 };
 
+const createTeam = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const { teamName,breederId } = req.body;
+  if (!teamName || typeof teamName !== "string") {
+    sendError(res, "Invalid teamName parameter", {}, STATUS.BAD_REQUEST);
+    return;
+  }
+  if (!breederId || typeof breederId !== "number") {
+    sendError(res, "Invalid breederId parameter", {}, STATUS.BAD_REQUEST);
+    return;
+  }
+  try {
+    const teamExists = await prisma.team.findUnique({
+      where:{
+        teamName_idBreeder:{
+          teamName,
+          idBreeder: breederId
+        }
+      }
+    })
+    if(teamExists){
+      sendError(res, "Team with this name already exists", {}, STATUS.BAD_REQUEST);
+      return;
+    }
+    const newTeam = await prisma.team.create({
+      data: {
+        teamName,
+        idBreeder: breederId
+      },
+    });
+    sendSuccess(res, newTeam, "Team created successfully", STATUS.CREATED);
+  } catch (error) {
+    console.error("Error creating team:", error);
+    sendError(
+      res,
+      "Failed to create team",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+const getBreederTeams = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const breederId = req.params.breederId;
+  if (!breederId || isNaN(parseInt(breederId, 10))) {
+    sendError(res, "Invalid breederId parameter", {}, STATUS.BAD_REQUEST);
+    return;
+  }
+  const breederIdNumber = parseInt(breederId, 10);
+  try {
+    const teams = await prisma.team.findMany({
+      where: {
+        idBreeder: breederIdNumber,
+      },
+    });
+    sendSuccess(res, teams, "Teams retrieved successfully", STATUS.OK);
+  } catch (error) {
+    console.error("Error retrieving teams:", error);
+    sendError(
+      res,
+      "Failed to retrieve teams",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+};
+
+const deleteTeam = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const { teamId } = req.params;
+  if (!teamId || isNaN(parseInt(teamId, 10))) {
+    sendError(res, "Invalid teamId parameter", {}, STATUS.BAD_REQUEST);
+    return;
+  }
+  try {
+    const deletedTeam = await prisma.team.delete({
+      where: { idTeam: parseInt(teamId, 10) },
+    });
+    sendSuccess(res, deletedTeam, "Team deleted successfully", STATUS.OK);
+  } catch (error) {
+    console.error("Error deleting team:", error);
+    sendError(
+      res,
+      "Failed to delete team",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+}
+
+const updateTeam = async (req: Request, res: Response) => {
+  if (!req.user) {
+    sendError(res, "Unauthorized", {}, STATUS.UNAUTHORIZED);
+    return;
+  }
+  const { teamId } = req.params;
+  const { teamName } = req.body;
+  if (!teamId || isNaN(parseInt(teamId, 10))) {
+    sendError(res, "Invalid teamId parameter", {}, STATUS.BAD_REQUEST);
+    return;
+  }
+  if (!teamName || typeof teamName !== "string") {
+    sendError(res, "Invalid teamName parameter", {}, STATUS.BAD_REQUEST);
+    return;
+  }
+  try {
+    const updatedTeam = await prisma.team.update({
+      where: { idTeam: parseInt(teamId, 10) },
+      data: { teamName },
+    });
+    sendSuccess(res, updatedTeam, "Team updated successfully", STATUS.OK);
+  } catch (error) {
+    console.error("Error updating team:", error);
+    sendError(
+      res,
+      "Failed to update team",
+      {},
+      STATUS.INTERNAL_SERVER_ERROR
+    );
+  }
+}
+
 export {
   getBreederProfile,
   updateBreederProfile,
@@ -397,4 +529,8 @@ export {
   updateBreederByAdmin,
   getBreederById,
   createBreeder,
+  createTeam,
+  getBreederTeams,
+  deleteTeam,
+  updateTeam,
 };

@@ -9,6 +9,10 @@ import {
   updateBreederByAdmin,
   getBreederById,
   createBreeder,
+  createTeam,
+  deleteTeam,
+  updateTeam,
+  getBreederTeams
 } from "../controllers/user.controller";
 
 const userRouter = Router();
@@ -33,22 +37,27 @@ userRouter.get(
 
 userRouter.get("/breeders", requireRole(["ADMIN"]), getBreedersAddressBook);
 
-userRouter.get(
-  "/breeders/:breederId",
-  requireRole(["ADMIN"]),
-  getBreederById
-);
+userRouter.get("/breeders/:breederId", requireRole(["ADMIN"]), getBreederById);
 
-userRouter.post(
-  "/breeders",
-  requireRole(["ADMIN"]),
-  createBreeder
-);
+userRouter.post("/breeders", requireRole(["ADMIN"]), createBreeder);
 
 userRouter.put(
   "/breeders/:breederId",
   requireRole(["ADMIN"]),
   updateBreederByAdmin
+);
+
+userRouter.post("/teams", requireRole(["ADMIN", "BREEDER"]), createTeam);
+userRouter.get("/teams/:breederId", requireRole(["ADMIN", "BREEDER"]), getBreederTeams);
+userRouter.delete(
+  "/teams/:teamId",
+  requireRole(["ADMIN", "BREEDER"]),
+  deleteTeam
+);
+userRouter.put(
+  "/teams/:teamId",
+  requireRole(["ADMIN", "BREEDER"]),
+  updateTeam
 );
 
 export default userRouter;

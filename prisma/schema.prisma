@@ -158,6 +158,7 @@ model Breeders {
   partners             Partners[]
   birds                Birds[]
   payments             Payments[]
+  teams                Team[]
 
   @@map("Breeders")
 }
@@ -769,6 +770,16 @@ model TmpBets {
   eventInventoryItem   EventInventoryItem? @relation(fields: [idEventInventoryItem], references: [idEventInventoryItem])
 
   @@map("TmpBets")
+}
+
+model Team {
+  idTeam    Int       @id @default(autoincrement()) @map("ID_TEAM")
+  teamName  String?   @map("TEAM_NAME")
+  idBreeder Int?      @map("ID_BREEDER")
+  breeder   Breeders? @relation(fields: [idBreeder], references: [idBreeder])
+
+  @@map("Team")
+  @@unique([teamName, idBreeder])
 }
 
 model TmpId {
